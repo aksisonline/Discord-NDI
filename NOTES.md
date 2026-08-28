@@ -101,3 +101,33 @@ Confirmed on the official Discord client (macOS, app-0.0.409, Aug 2026):
   by wrapper: camera tiles sit inside `previewWrapper_*` (alongside `effectsWrapper_*`),
   Go Live tiles inside `videoContainer_*`. Class hashes change between builds, so match
   the prefix. `resolveOwner` warns when neither matches rather than silently guessing.
+
+## Packaging (Electrobun)
+
+Verified on macOS arm64:
+
+- `mainProcess: "bun"` in `electrobun.config.ts` is required. Electrobun 2.0 defaults to
+  Cottontail, and the NDI binding is an N-API addon that needs a Node-API host.
+- `hutch electrobun build --env=stable` produces `Discord-NDI.app` plus a `.dmg`. The app
+  self-extracts to `~/Library/Application Support/sh.aks.discord-ndi/stable` on first run,
+  serves the panel, and reports `ndi: true`.
+
+**Not yet self-contained.** That `ndi: true` is misleading: there is no `grandiose` and no
+`.node` anywhere under the install root, so the require resolved out of the *development*
+`app/node_modules`. On another machine it would fail. Marking grandiose `external` keeps it
+out of the JS bundle but does not copy it in — the build needs a `copy` rule placing the
+built addon (and `libndi.dylib` / `Processing.NDI.Lib.x64.dll`) somewhere the bundled main
+script resolves from. Verify by renaming `app/node_modules/grandiose` and relaunching: the
+panel must still report `ndi: true`.
+
+Windows is entirely untested — no Windows machine was available. `app/discord.ts` has the
+platform-specific launch path (`%LOCALAPPDATA%\Discord\Update.exe --processStart
+Discord.exe --process-start-args`), but nothing on that path has been run.
+
+grandiose has no prebuilt binaries and compiles via node-gyp, so a Windows build needs
+Visual Studio build tools on the *build* machine; end users must not be asked for that.
+That means building the addon per-platform in CI and shipping the artifacts.
+
+Redistributing the NDI runtime (`libndi.dylib`, `Processing.NDI.Lib.x64.dll`) is covered by
+NewTek/Vizrt's licence, not grandiose's Apache-2.0 — worth reading before publishing
+installers.

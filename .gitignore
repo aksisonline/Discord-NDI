@@ -6,3 +6,8 @@ build/
 # Electrobun build output
 .electrobun/
 artifacts/
+
+# Electrobun / Hutch toolchain + build output
+shell/**/.hutch/
+shell/**/build/
+shell/**/node_modules/
