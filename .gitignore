@@ -11,3 +11,6 @@ artifacts/
 shell/**/.hutch/
 shell/**/build/
 shell/**/node_modules/
+
+# Hutch toolchain dirs (generated dev cache, not source)
+.hutch/

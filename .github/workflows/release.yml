@@ -83,7 +83,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: macos
-          path: shell/discord-ndi/build/stable-macos-arm64/Discord-NDI-stable.dmg
+          # Upload the whole per-platform output dir rather than guessing the exact
+          # .dmg/.app name electrobun emits (it varies by build); the release step
+          # globs the contents. fail-on-missing keeps a broken build from drafting.
+          if-no-files-found: error
+          path: shell/discord-ndi/build/stable-macos-arm64/**
 
   # Entirely unverified — no Windows machine has ever run this project. Drafting a
   # release from a partially-succeeded build is still better than no draft at all,
@@ -110,7 +114,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: shell/discord-ndi/build/stable-windows-*/
+          if-no-files-found: error
+          path: shell/discord-ndi/build/stable-windows-*/**
 
   release:
     needs: [prepare, build-macos, build-windows]
