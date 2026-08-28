@@ -151,9 +151,10 @@ jobs:
           name: windows
           path: windows
 
-      # --generate-notes groups commits as Added/Fixed etc. Attach each per-platform
-      # artifact dir only if it was actually downloaded (Windows is unverified and may
-      # be absent); gh release create errors if a glob matches nothing.
+      # --generate-notes groups commits as Added/Fixed etc. Attach the build artifacts
+      # (the .dmg/.app) by their actual file paths; gh release create ignores directory
+      # arguments, so expand recursively and keep only regular files. Windows may be
+      # absent (unverified) — skip it silently.
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -163,9 +164,13 @@ jobs:
           if [ "${{ needs.prepare.outputs.prerelease }}" = "true" ]; then
             ARGS+=(--prerelease)
           fi
+          shopt -s globstar nullglob
           FILES=()
-          [ -d macos ] && FILES+=(macos)
-          [ -d windows ] && FILES+=(windows)
+          for d in macos windows; do
+            [ -d "$d" ] && for f in "$d"/**/*; do
+              [ -f "$f" ] && FILES+=("$f")
+            done
+          done
           if [ ${#FILES[@]} -eq 0 ]; then
             echo "no build artifacts to attach"
             exit 1
