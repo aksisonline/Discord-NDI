@@ -101,15 +101,9 @@ Electrobun's bundled Bun has N-API enabled.
 - Client automation like this violates Discord's ToS. Enforcement against non-abusive
   tooling has historically been nil, but it is your account.
 
-## The legacy Vencord plugin
+## Layout notes
 
-`plugin/` and `install.sh` are the earlier approach: the same tap shipped as a Vencord
-userplugin. It works, but it is now a **second implementation of the same logic**, and the
-two will drift — every bug fixed in `payload.ts` (track swaps, camera/stream collision,
-username lookup) would need fixing twice.
-
-The standalone app needs no Vencord at all, so `plugin/` is safe to delete. It is left in
-place only because this repo has no version control yet; delete it once you are happy.
-
-If you do keep it, note it will publish the same NDI source names as the app, so run one
-or the other, not both.
+`app/protocol.ts` carries a comment pointing at `plugin/wire.ts` for the encoder half of the
+wire format. That `plugin/` tree — an earlier Vencord-userplugin approach — was intentionally
+deleted once the standalone app worked and was committed; the comment points at git
+history now. The standalone app needs no Vencord, so the two-tap divergence problem is gone.
