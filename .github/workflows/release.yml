@@ -86,6 +86,13 @@ jobs:
           HUTCH_HOME: ${{ github.workspace }}/shell/discord-ndi/.hutch
         run: bunx electrobun build --env=stable
 
+      - name: Diagnostic - list build outputs
+        working-directory: shell/discord-ndi
+        run: |
+          ls -la build/stable-macos-arm64/
+          echo "---"
+          find build/stable-macos-arm64/ -maxdepth 2 -type f | head -20
+
       - uses: actions/upload-artifact@v4
         with:
           name: macos
@@ -124,7 +131,7 @@ jobs:
           # May be empty until the Windows build path is confirmed; release step
           # tolerates a missing windows artifact.
           if-no-files-found: warn
-          path: shell/discord-ndi/build/stable-windows-*/**
+          path: shell/discord-ndi/build/stable-win-*/**
 
   release:
     needs: [prepare, build-macos, build-windows]
