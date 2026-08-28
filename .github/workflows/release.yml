@@ -89,12 +89,13 @@ jobs:
           if-no-files-found: error
           path: shell/discord-ndi/build/stable-macos-arm64/**
 
-  # Entirely unverified — no Windows machine has ever run this project. Drafting a
-  # release from a partially-succeeded build is still better than no draft at all,
-  # which is why download-artifact for windows below is continue-on-error.
+  # Entirely unverified — no Windows machine has ever run this project. Keep it
+  # non-blocking so a macOS-only draft still ships; the Windows artifact simply
+  # won't attach until the build output path is confirmed on a real runner.
   build-windows:
     needs: [prepare]
     runs-on: windows-latest
+    continue-on-error: true
     permissions:
       contents: write
     steps:
@@ -114,7 +115,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          if-no-files-found: error
+          # May be empty until the Windows build path is confirmed; release step
+          # tolerates a missing windows artifact.
+          if-no-files-found: warn
           path: shell/discord-ndi/build/stable-windows-*/**
 
   release:
