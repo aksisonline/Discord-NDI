@@ -1,0 +1,103 @@
+# Recon notes
+
+Findings from probing the live official Discord client. `app/probe.ts` runs an expression
+in its renderer over CDP, which is how all of this was established:
+
+```bash
+bun run app/probe.ts /tmp/expr.js
+```
+
+## 1. Which elements carry remote media?
+
+```js
+[...document.querySelectorAll("audio,video")].map(e => ({
+    tag: e.tagName,
+    tracks: e.srcObject?.getTracks().map(t => t.kind)
+}))
+```
+
+Expected: one `<video>` per camera/screen tile, and either one `<audio>` per remote user or
+a single mixed one. `tap.ts` assumes per-user elements — if audio turns out to be a single
+mixed element, the Web Audio graph or the SSRC fallback below is required instead.
+
+## 2. Does the fiber walk find a userId?
+
+```js
+const el = document.querySelector("video");
+let f = el[Object.keys(el).find(k => k.startsWith("__reactFiber$"))];
+for (let i = 0; f && i < 30; i++, f = f.return) console.log(i, f.memoizedProps);
+```
+
+Look for `userId`, `user.id`, `participant.user.id`, or `streamKey`. `resolveOwner()` in
+`tap.ts` checks exactly those — widen it here if the real prop name differs.
+
+## 3. Fallback mapping (DOM-independent)
+
+If the fiber walk proves brittle, map SSRC to user instead: the voice gateway sends
+`speaking` (op 5) carrying `user_id` and `audio_ssrc`, plus video opcodes with `video_ssrc`.
+Cross-reference against `pc.getStats()` → `inbound-rtp.ssrc`, or
+`receiver.getSynchronizationSources()`. This survives UI refactors; the fiber walk does not.
+
+## 4. Does the outbound track carry Discord's processing?
+
+```js
+[...document.querySelectorAll("video")].length; // just to have a PC alive
+// then, on any RTCPeerConnection Discord owns:
+pc.getSenders().map(s => [s.track?.kind, s.track?.getSettings()])
+```
+
+Audio sender settings should report `echoCancellation`/`noiseSuppression`/`autoGainControl`.
+If Discord instead runs Krisp as a WASM AudioWorklet *upstream* of the sender, the sender
+track is still the right tap — it is whatever gets transmitted either way. If it turns out
+to be the raw device track, the tap has to move to the worklet's output node instead.
+
+## 5. Is remote video reachable on the *official* client at all?
+
+Only worth answering out of curiosity — audio is out either way (see README). Enable
+DevTools on the official client (`DISCORD_ENABLE_DEVTOOLS=1`), join a call with someone's
+camera on, and run:
+
+```js
+[...document.querySelectorAll("video, canvas")].map(e => ({
+    tag: e.tagName,
+    stream: (e as any).srcObject ?? null,
+    ctx: e.tagName === "CANVAS" ? "canvas — frames come from native, not tappable as a track" : null
+}))
+```
+
+A `<video>` with a live `srcObject` means video is reachable. A bare `<canvas>`, or a
+`<video>` with a null `srcObject`, means the native engine is painting frames and there is
+no MediaStreamTrack to clone.
+
+## Findings
+
+Confirmed on the official Discord client (macOS, app-0.0.409, Aug 2026):
+
+- **Remote video is reachable.** Each participant's camera arrives on a plain `<video>`
+  with a live `srcObject` carrying a real video track (1280x720 observed). The native
+  media engine renders through Chromium after all.
+- **Those `<video>` elements have no React fiber.** `__reactFiber$` is absent — they are
+  created imperatively. Their ancestors *do* have fibers, so a fiber walk must start at
+  `el.parentElement`.
+- **Identity comes from the tile, not the fiber.** The enclosing tile div carries
+  `data-selenium-video-tile="<userId>"`. `resolveOwner()` uses `closest()` on that and
+  keeps the fiber walk only as a fallback.
+- **Your own tile is included**, distinguishable by the `mirror__*` class on the video
+  wrapper.
+- **Audio never appears.** No `<audio>` elements, no audio tracks on any stream — the
+  native engine mixes and plays in C++. Per-user audio needs Vesktop.
+
+- **Discord swaps tracks mid-call.** A participant's resolution changes produce a *new*
+  `MediaStreamTrack` with a new `deviceId` on the same tile (1280x720 -> 640x360 ->
+  896x504 all observed). A pump bound to the first track therefore freezes at whatever
+  size it started with. `bound` (element -> current tracks) plus a 2s reconcile handles
+  both mechanisms — srcObject replacement and in-place stream mutation.
+- **There is no rotation metadata.** Every ancestor reports `transform: none` and
+  `rotate: none`; the only transform is `matrix(-1,0,0,1,0,0)` on the self tile, which is
+  the `mirror__*` horizontal flip. Rotating a phone reads as "NDI orientation is stuck"
+  purely because of the stale-track bug above, not because Discord rotates at render.
+  NDI output is deliberately unmirrored — the mirror is a local UI nicety.
+- **A camera and a Go Live from the same person share one tile id.** They are told apart
+  by wrapper: camera tiles sit inside `previewWrapper_*` (alongside `effectsWrapper_*`),
+  Go Live tiles inside `videoContainer_*`. Class hashes change between builds, so match
+  the prefix. `resolveOwner` warns when neither matches rather than silently guessing.

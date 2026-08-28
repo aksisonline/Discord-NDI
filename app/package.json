@@ -1,0 +1,21 @@
+{
+  "name": "discord-ndi-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "module": "index.ts",
+  "scripts": {
+    "start": "bun run index.ts",
+    "dev": "bun --hot index.ts",
+    "test": "bun test"
+  },
+  "optionalDependencies": {
+    "grandiose": "github:rse/grandiose"
+  },
+  "trustedDependencies": [
+    "grandiose"
+  ],
+  "devDependencies": {
+    "electrobun": "^2.0.1"
+  }
+}
