@@ -13,7 +13,8 @@ import { parseArgs } from "util";
 
 import { findDiscord, Session } from "./cdp";
 import { relaunchWithDebugging, waitForCdp } from "./discord";
-import { closeAll, loadGrandiose, serve, status } from "./ndi";
+import { closeAll, loadGrandiose, serve, setEnabled, setRotation, setViewerHooks, sources, status } from "./ndi";
+import type { Rotation } from "./rotate";
 
 /** Built once and cached; the payload is a self-contained bundle with the port baked in. */
 export async function buildPayload(port: number) {
@@ -101,14 +102,81 @@ export class Controller {
     }
 }
 
-/** Local control panel: an on/off switch and whatever is currently publishing. */
-export function ui(controller: Controller, port: number) {
-    const page = new URL("./ui.html", import.meta.url).pathname;
+/** One <canvas> viewer page per source, no chrome — meant for OBS's Browser Source. */
+function viewerPage(key: string) {
+    return `<!doctype html><meta charset="utf-8">
+<style>html,body{margin:0;background:#000;overflow:hidden;height:100%}canvas{width:100vw;height:100vh;display:block}</style>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const off = new OffscreenCanvas(1, 1);
+const offCtx = off.getContext("2d");
 
-    const server = Bun.serve({
+function connect() {
+    const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/view/${key}/socket");
+    ws.binaryType = "arraybuffer";
+    ws.onmessage = ev => {
+        const view = new DataView(ev.data);
+        const width = view.getUint32(0, true);
+        const height = view.getUint32(4, true);
+        const rgba = new Uint8ClampedArray(ev.data, 8);
+
+        if (off.width !== width || off.height !== height) {
+            off.width = width;
+            off.height = height;
+        }
+        offCtx.putImageData(new ImageData(rgba, width, height), 0, 0);
+
+        // ponytail: stretch-fill, no letterboxing. Size the OBS Browser Source to match
+        // the source's aspect ratio if that matters to you.
+        if (canvas.width !== innerWidth || canvas.height !== innerHeight) {
+            canvas.width = innerWidth;
+            canvas.height = innerHeight;
+        }
+        ctx.drawImage(off, 0, 0, canvas.width, canvas.height);
+    };
+    ws.onclose = () => setTimeout(connect, 1000);
+}
+connect();
+</script>`;
+}
+
+interface ViewerSocketData { viewerKey: string; }
+
+/**
+ * Local control panel: on/off + per-source rows, and the /view/:key browser outputs.
+ * `page` lets the packaged shell point at its copied view path instead of the default;
+ * in the bundle the default `./ui.html` would resolve relative to the bundled main script.
+ */
+export function ui(controller: Controller, port: number, page?: string) {
+    page ??= new URL("./ui.html", import.meta.url).pathname;
+    /** key -> connected viewer sockets, for the "only render for someone watching" gate. */
+    const viewers = new Map<string, Set<import("bun").ServerWebSocket<ViewerSocketData>>>();
+
+    setViewerHooks({
+        hasViewers: key => (viewers.get(key)?.size ?? 0) > 0,
+        broadcast(key, width, height, rgba) {
+            const sockets = viewers.get(key);
+            if (!sockets?.size) return;
+            const header = new Uint8Array(8);
+            new DataView(header.buffer).setUint32(0, width, true);
+            new DataView(header.buffer).setUint32(4, height, true);
+            const frame = new Uint8Array(8 + rgba.length);
+            frame.set(header);
+            frame.set(rgba, 8);
+            for (const ws of sockets) ws.send(frame);
+        },
+        closeViewers(key) {
+            for (const ws of viewers.get(key) ?? []) ws.close();
+            viewers.delete(key);
+        }
+    });
+
+    const server = Bun.serve<ViewerSocketData, {}>({
         hostname: "127.0.0.1",
         port,
-        async fetch(req) {
+        async fetch(req, server) {
             const { pathname } = new URL(req.url);
 
             if (pathname === "/api/status") return Response.json(controller.status());
@@ -123,7 +191,50 @@ export function ui(controller: Controller, port: number) {
                 }
             }
 
+            const enabledMatch = pathname.match(/^\/api\/source\/([^/]+)\/enabled$/);
+            if (enabledMatch && req.method === "POST") {
+                const { enabled } = await req.json();
+                setEnabled(decodeURIComponent(enabledMatch[1]), !!enabled);
+                return Response.json(controller.status());
+            }
+
+            const rotationMatch = pathname.match(/^\/api\/source\/([^/]+)\/rotation$/);
+            if (rotationMatch && req.method === "POST") {
+                const { rotation } = await req.json();
+                if (![0, 90, 180, 270].includes(rotation)) return new Response("rotation must be 0/90/180/270", { status: 400 });
+                setRotation(decodeURIComponent(rotationMatch[1]), rotation as Rotation);
+                return Response.json(controller.status());
+            }
+
+            const viewMatch = pathname.match(/^\/view\/([^/]+)$/);
+            if (viewMatch) {
+                const key = decodeURIComponent(viewMatch[1]);
+                const source = sources.get(key);
+                // Matches the "fully torn down" off-state: no page for a source that
+                // doesn't exist or was switched off, same as if the person had left.
+                if (!source || !source.enabled) return new Response("source not available", { status: 404 });
+                return new Response(viewerPage(key), { headers: { "content-type": "text/html" } });
+            }
+
+            const socketMatch = pathname.match(/^\/view\/([^/]+)\/socket$/);
+            if (socketMatch) {
+                const key = decodeURIComponent(socketMatch[1]);
+                if (!sources.get(key)?.enabled) return new Response("source not available", { status: 404 });
+                return server.upgrade(req, { data: { viewerKey: key } }) ? undefined : new Response("upgrade failed", { status: 500 });
+            }
+
             return new Response(Bun.file(page));
+        },
+        websocket: {
+            open(ws) {
+                const key = ws.data.viewerKey;
+                if (!viewers.has(key)) viewers.set(key, new Set());
+                viewers.get(key)!.add(ws);
+            },
+            close(ws) {
+                viewers.get(ws.data.viewerKey)?.delete(ws);
+            },
+            message() { /* viewers are receive-only */ }
         }
     });
 

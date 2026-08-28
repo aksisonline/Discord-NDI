@@ -1,0 +1,6 @@
+[install]
+# Hoisted, not the default isolated store: grandiose's runtime deps (bindings,
+# file-uri-to-path) need to sit as plain node_modules siblings so a packaging step can
+# copy the whole dependency chain as one directory, without reverse-engineering Bun's
+# isolated-store layout (.bun/<pkg>@<version>/node_modules/<pkg>) inside electrobun.config.ts.
+linker = "hoisted"

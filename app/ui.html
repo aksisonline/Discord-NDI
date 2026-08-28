@@ -2,30 +2,43 @@
 <meta charset="utf-8">
 <title>Discord-NDI</title>
 <style>
-  :root { color-scheme: dark; --bg:#1a1b1e; --card:#25262b; --fg:#e9ecef; --dim:#909296; --on:#37b24d; --off:#495057; }
+  :root { color-scheme: dark; --bg:#1a1b1e; --card:#25262b; --row:#2c2e33; --fg:#e9ecef; --dim:#909296; --on:#37b24d; --off:#495057; --accent:#4dabf7; }
   * { box-sizing: border-box; }
   body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--fg); padding:28px; }
   h1 { font-size:17px; margin:0 0 4px; letter-spacing:.3px; }
   .sub { color:var(--dim); font-size:13px; margin-bottom:22px; }
-  .row { display:flex; align-items:center; gap:14px; background:var(--card); padding:16px 18px; border-radius:10px; }
-  button { appearance:none; border:0; border-radius:999px; width:58px; height:32px; background:var(--off); position:relative; cursor:pointer; transition:background .15s; }
-  button[aria-pressed="true"] { background:var(--on); }
-  button::after { content:""; position:absolute; top:4px; left:4px; width:24px; height:24px; border-radius:50%; background:#fff; transition:transform .15s; }
-  button[aria-pressed="true"]::after { transform:translateX(26px); }
-  .state { font-weight:600; }
-  ul { list-style:none; padding:0; margin:20px 0 0; }
-  li { background:var(--card); padding:11px 16px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; }
-  .frames { color:var(--dim); font-variant-numeric:tabular-nums; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:14px; background:var(--card); padding:14px 16px; border-radius:10px; }
+  .row .label { display:flex; align-items:center; gap:10px; font-weight:600; }
+  .switch { appearance:none; border:0; border-radius:999px; position:relative; cursor:pointer; transition:background .15s; flex-shrink:0; }
+  .switch::after { content:""; position:absolute; border-radius:50%; background:#fff; transition:transform .15s; }
+  .switch.lg { width:58px; height:32px; background:var(--off); }
+  .switch.lg::after { top:4px; left:4px; width:24px; height:24px; }
+  .switch.lg[aria-pressed="true"] { background:var(--on); }
+  .switch.lg[aria-pressed="true"]::after { transform:translateX(26px); }
+  .switch.sm { width:38px; height:22px; background:var(--off); }
+  .switch.sm::after { top:3px; left:3px; width:16px; height:16px; }
+  .switch.sm[aria-pressed="true"] { background:var(--on); }
+  .switch.sm[aria-pressed="true"]::after { transform:translateX(16px); }
+  ul { list-style:none; padding:0; margin:20px 0 0; display:flex; flex-direction:column; gap:8px; }
+  li { background:var(--card); border-radius:10px; padding:12px 14px; border:1px solid transparent; }
+  li.off { border-color:var(--off); opacity:.6; }
+  .source-top { display:flex; align-items:center; gap:10px; }
+  .source-name { flex:1; font-weight:500; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .icon-btn { appearance:none; border:0; background:var(--row); color:var(--fg); width:30px; height:30px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
+  .icon-btn:hover { background:var(--off); }
+  .source-bottom { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid var(--row); font-size:12px; }
+  .url { color:var(--accent); font-family:ui-monospace,monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .paused { color:var(--dim); }
   .empty, .warn { color:var(--dim); font-size:13px; margin-top:18px; }
   .warn { color:#ffa94d; }
 </style>
 
 <h1>Discord-NDI</h1>
-<div class="sub">Every participant in your call as a separate NDI source.</div>
+<div class="sub">Every participant in your call as a separate NDI source and browser URL.</div>
 
 <div class="row">
-  <button id="toggle" aria-pressed="false" aria-label="Toggle capture"></button>
-  <span class="state" id="state">Off</span>
+  <span class="label" id="state">Off</span>
+  <button class="switch lg" id="toggle" aria-pressed="false" aria-label="Toggle capture"></button>
 </div>
 
 <ul id="sources"></ul>
@@ -35,6 +48,55 @@
 <script>
 const $ = id => document.getElementById(id);
 let busy = false;
+let lastSourcesJson = "";
+
+function rotateIcon(deg) {
+  return deg === 0 ? "&#8635;" : deg + "&deg;";
+}
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) return alert(await r.text());
+  refresh();
+}
+
+function copyUrl(url) {
+  navigator.clipboard.writeText(location.origin + url).catch(() => {});
+}
+
+function render(sources) {
+  // The list re-renders wholesale via innerHTML, which yanks buttons out from under an
+  // in-flight click if it runs during one — skip the rebuild when nothing that affects
+  // the DOM changed. `frames` is deliberately excluded: it changes on every poll while
+  // capturing, which would otherwise force a rebuild every single second regardless.
+  const json = JSON.stringify(sources.map(({ key, name, enabled, rotation, url }) => ({ key, name, enabled, rotation, url })));
+  if (json === lastSourcesJson) return;
+  lastSourcesJson = json;
+
+  $("sources").innerHTML = sources.map(src => `
+    <li class="${src.enabled ? "" : "off"}">
+      <div class="source-top">
+        <span class="source-name">${src.name}</span>
+        <button class="icon-btn" aria-label="Rotate" data-rotate="${src.key}" data-current="${src.rotation}">${rotateIcon(src.rotation)}</button>
+        <button class="switch sm" aria-pressed="${src.enabled}" aria-label="Toggle source" data-enable="${src.key}" data-current="${src.enabled}"></button>
+      </div>
+      <div class="source-bottom">
+        ${src.enabled
+          ? `<span class="url">${location.host}${src.url}</span><button class="icon-btn" aria-label="Copy URL" data-copy="${src.url}">&#10697;</button>`
+          : `<span class="paused">off — source paused</span>`}
+      </div>
+    </li>
+  `).join("");
+
+  $("sources").querySelectorAll("[data-rotate]").forEach(btn => btn.onclick = () => {
+    const next = { 0: 90, 90: 180, 180: 270, 270: 0 }[Number(btn.dataset.current)];
+    post(`/api/source/${encodeURIComponent(btn.dataset.rotate)}/rotation`, { rotation: next });
+  });
+  $("sources").querySelectorAll("[data-enable]").forEach(btn => btn.onclick = () => {
+    post(`/api/source/${encodeURIComponent(btn.dataset.enable)}/enabled`, { enabled: btn.dataset.current !== "true" });
+  });
+  $("sources").querySelectorAll("[data-copy]").forEach(btn => btn.onclick = () => copyUrl(btn.dataset.copy));
+}
 
 async function refresh() {
   const s = await (await fetch("/api/status")).json();
@@ -42,9 +104,7 @@ async function refresh() {
   $("toggle").setAttribute("aria-pressed", String(s.running));
   $("state").textContent = busy ? "Working…" : s.running ? "Capturing" : "Off";
 
-  $("sources").innerHTML = s.sources.map(src =>
-    `<li><span>${src.name}</span><span class="frames">${src.live ? src.frames.toLocaleString() + " frames" : "starting…"}</span></li>`
-  ).join("");
+  render(s.sources);
 
   $("empty").hidden = s.sources.length > 0;
   $("empty").textContent = s.running

@@ -1,0 +1,74 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install app dependencies
+        working-directory: app
+        # grandiose compiles via node-gyp (voice ships a downloaded NDI SDK, not a
+        # prebuilt binary); macos runners have Xcode CLT for that.
+        run: bun install --frozen-lockfile
+
+      - name: Build Electrobun package
+        working-directory: shell/discord-ndi
+        # HUTCH_HOME must point at a per-project dir; Hutch refuses to install into
+        # what it thinks is an unmarked shared home.
+        env:
+          HUTCH_HOME: ${{ github.workspace }}/shell/discord-ndi/.hutch
+        run: bunx electrobun build --env=stable
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: shell/discord-ndi/build/stable-macos-arm64/Discord-NDI-stable.dmg
+
+  # Entirely unverified — Windows was never run anywhere in this project, and this
+  # job itself has never executed. It exists so the first tag push tells us if it works.
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install app dependencies
+        working-directory: app
+        run: bun install --frozen-lockfile
+
+      - name: Build Electrobun package
+        working-directory: shell/discord-ndi
+        shell: pwsh
+        env:
+          HUTCH_HOME: ${{ github.workspace }}/shell/discord-ndi/.hutch
+        run: bunx electrobun build --env=stable
+      # Electrobun output on Windows is an installer/zip under
+      # shell/discord-ndi/build/stable-windows-x64/; pattern is a wildcard because
+      # the unverified build's exact artifact name isn't confirmed yet.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: shell/discord-ndi/build/stable-windows-*/
+
+  release:
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --draft --generate-notes macos/** windows/**

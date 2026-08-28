@@ -112,13 +112,17 @@ Verified on macOS arm64:
   self-extracts to `~/Library/Application Support/sh.aks.discord-ndi/stable` on first run,
   serves the panel, and reports `ndi: true`.
 
-**Not yet self-contained.** That `ndi: true` is misleading: there is no `grandiose` and no
-`.node` anywhere under the install root, so the require resolved out of the *development*
-`app/node_modules`. On another machine it would fail. Marking grandiose `external` keeps it
-out of the JS bundle but does not copy it in — the build needs a `copy` rule placing the
-built addon (and `libndi.dylib` / `Processing.NDI.Lib.x64.dll`) somewhere the bundled main
-script resolves from. Verify by renaming `app/node_modules/grandiose` and relaunching: the
-panel must still report `ndi: true`.
+**Self-contained, verified.** The earlier gap — `grandiose external` kept it out of the JS
+bundle but copied it nowhere, so `ndi: true` only worked because the dev tree's
+`app/node_modules` was reachable — is closed. `app/bunfig.toml` pins `linker = "hoisted"`
+so grandiose's transitive deps (`bindings`, `file-uri-to-path`) install as flat top-level
+siblings instead of Bun's isolated-store layout (which nests them under version-hashed
+paths like `.bun/bindings@1.5.0/node_modules/bindings`), and three `copy` rules in
+`electrobun.config.ts` place grandiose + bindings + file-uri-to-path at
+`bun/node_modules/<name>` in the bundle. Verified by renaming `app/node_modules/grandiose`
+aside and launching the built `.app`: `/api/status` reports `ndi: true` with the dev tree
+unreachable. `libndi.dylib` rides along inside grandiose's folder (loads via `@loader_path`,
+confirmed with `otool -l`).
 
 Windows is entirely untested — no Windows machine was available. `app/discord.ts` has the
 platform-specific launch path (`%LOCALAPPDATA%\Discord\Update.exe --processStart

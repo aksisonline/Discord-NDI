@@ -23,7 +23,7 @@ try {
 const withNdi = test.skipIf(!grandiose);
 
 withNdi("a real sender accepts video and audio frames", async () => {
-    const src = new Source("Discord – Test");
+    const src = new Source("test-key", "Discord – Test");
     // send() is async; frames before it resolves are dropped by design.
     await Bun.sleep(100);
     expect(src.live).toBe(true); // guards against this test passing on the dry path

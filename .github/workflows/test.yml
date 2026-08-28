@@ -1,0 +1,24 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: app
+        run: bun install --frozen-lockfile
+
+      - name: Test
+        working-directory: app
+        # ndi.test.ts skips gracefully via test.skipIf(!grandiose) when the native
+        # addon can't load (no macOS/arm64 binary available on this runner).
+        run: bun test
