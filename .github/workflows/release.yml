@@ -1,27 +1,82 @@
 name: release
 
+# Triggered by `test` workflow success on main (workflow_run), or manually for a stable tag.
 on:
-  push:
-    tags: ["v*"]
+  workflow_run:
+    workflows: [test]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      stable:
+        description: 'Set to "true" to publish a stable (non-prerelease) release.'
+        required: false
+        type: string
+        default: "false"
 
 jobs:
+  prepare:
+    if: >-
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Resolve next version: stable vX.Y.Z entered manually; otherwise bump the
+      # -rc. counter off the latest tag base. Falls back to v0.0.0 on a repo with no
+      # v* tags yet.
+      - uses: actions/github-script@v7
+        id: version
+        with:
+          script: |
+            const { execSync } = require("child_process");
+            const tags = execSync("git tag --list v* --sort -v:refname").toString().split("\n").filter(Boolean);
+            const latest = tags[0] || "v0.0.0";
+            const base = latest.replace(/^v/, "").replace(/-rc\.\d+$/, "");
+            const stable = ("${{ github.event.inputs.stable }}" || "false") === "true";
+
+            let tag, prerelease;
+            if (stable) {
+              tag = `v${base}`;
+              prerelease = "false";
+            } else {
+              // count existing -rc. tags on this base to pick the next suffix
+              const rcTags = tags.filter(t => t.startsWith(`v${base}-rc.`));
+              const next = rcTags.length + 1;
+              tag = `v${base}-rc.${next}`;
+              prerelease = "true";
+            }
+
+            console.log(`tag=${tag}`);
+            require("fs").writeFileSync(process.env.GITHUB_OUTPUT,
+              `tag=${tag}\nprerelease=${prerelease}\n`, { flag: "a" });
+
   build-macos:
+    needs: [prepare]
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
 
       - name: Install app dependencies
         working-directory: app
-        # grandiose compiles via node-gyp (voice ships a downloaded NDI SDK, not a
-        # prebuilt binary); macos runners have Xcode CLT for that.
+        # grandiose compiles via node-gyp; macos runners have Xcode CLT for it.
         run: bun install --frozen-lockfile
 
       - name: Build Electrobun package
         working-directory: shell/discord-ndi
-        # HUTCH_HOME must point at a per-project dir; Hutch refuses to install into
-        # what it thinks is an unmarked shared home.
         env:
+          # HUTCH_HOME must point at a per-project dir; Hutch refuses to install into
+          # what it thinks is an unmarked shared home.
           HUTCH_HOME: ${{ github.workspace }}/shell/discord-ndi/.hutch
         run: bunx electrobun build --env=stable
 
@@ -30,10 +85,14 @@ jobs:
           name: macos
           path: shell/discord-ndi/build/stable-macos-arm64/Discord-NDI-stable.dmg
 
-  # Entirely unverified — Windows was never run anywhere in this project, and this
-  # job itself has never executed. It exists so the first tag push tells us if it works.
+  # Entirely unverified — no Windows machine has ever run this project. Drafting a
+  # release from a partially-succeeded build is still better than no draft at all,
+  # which is why download-artifact for windows below is continue-on-error.
   build-windows:
+    needs: [prepare]
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -44,31 +103,46 @@ jobs:
 
       - name: Build Electrobun package
         working-directory: shell/discord-ndi
-        shell: pwsh
         env:
           HUTCH_HOME: ${{ github.workspace }}/shell/discord-ndi/.hutch
         run: bunx electrobun build --env=stable
-      # Electrobun output on Windows is an installer/zip under
-      # shell/discord-ndi/build/stable-windows-x64/; pattern is a wildcard because
-      # the unverified build's exact artifact name isn't confirmed yet.
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows
           path: shell/discord-ndi/build/stable-windows-*/
 
   release:
-    needs: [build-macos, build-windows]
+    needs: [prepare, build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
         with:
           name: macos
-      - uses: actions/download-artifact@v4
+
+      - name: Download Windows artifact (skip on failure)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
         with:
           name: windows
-      - name: Create draft release
+
+      # Repos with no v* tags yet get v0.0.0 from prepare; the first auto-tag becomes
+      # e.g. v0.1.0-rc.1. --generate-notes groups commits as Added/Fixed etc; see
+      # CHANGELOG.md (maintained via cliff.toml + git-cliff below) for curated history.
+      - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --draft --generate-notes macos/** windows/**
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          ARGS=(--draft --generate-notes)
+          if [ "${{ needs.prepare.outputs.prerelease }}" = "true" ]; then
+            ARGS+=(--prerelease)
+          fi
+          gh release create "$TAG" "${ARGS[@]}" macos/** windows/**

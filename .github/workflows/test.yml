@@ -22,3 +22,11 @@ jobs:
         # ndi.test.ts skips gracefully via test.skipIf(!grandiose) when the native
         # addon can't load (no macOS/arm64 binary available on this runner).
         run: bun test
+
+  # Kept as a named job so the release workflow's test gate can depend on the
+  # whole matrix, and so a future lint/type-check job lands in the same gate.
+  check:
+    needs: [app]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "All checks passed"
