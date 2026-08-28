@@ -29,17 +29,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Resolve next version: stable vX.Y.Z entered manually; otherwise bump the
-      # -rc. counter off the latest tag base. Falls back to v0.0.0 on a repo with no
-      # v* tags yet.
+      # Resolve next version. Prereleases target the NEXT minor off the latest stable
+      # tag (default 0.1.0 when none exists); the -rc.N counter increments per base.
+      # Stable releases are cut from that same bumped base. This keeps tags advancing
+      # instead of reusing 0.0.0 once a prerelease exists.
       - uses: actions/github-script@v7
         id: version
         with:
           script: |
             const { execSync } = require("child_process");
-            const tags = execSync("git tag --list v* --sort -v:refname").toString().split("\n").filter(Boolean);
-            const latest = tags[0] || "v0.0.0";
-            const base = latest.replace(/^v/, "").replace(/-rc\.\d+$/, "");
+            const tags = execSync("git tag --list 'v*' --sort -v:refname")
+              .toString().split("\n").filter(Boolean);
+            const bumpMinor = (v) => {
+              const [maj, min] = v.split(".");
+              return `${maj}.${Number(min) + 1}.0`;
+            };
+            const latestStable = tags.find(t => !/-rc\./.test(t));
+            const base = latestStable
+              ? bumpMinor(latestStable.replace(/^v/, ""))
+              : "0.1.0";
             const stable = ("${{ github.event.inputs.stable }}" || "false") === "true";
 
             let tag, prerelease;
@@ -47,10 +55,8 @@ jobs:
               tag = `v${base}`;
               prerelease = "false";
             } else {
-              // count existing -rc. tags on this base to pick the next suffix
               const rcTags = tags.filter(t => t.startsWith(`v${base}-rc.`));
-              const next = rcTags.length + 1;
-              tag = `v${base}-rc.${next}`;
+              tag = `v${base}-rc.${rcTags.length + 1}`;
               prerelease = "true";
             }
 
@@ -141,9 +147,9 @@ jobs:
         with:
           name: windows
 
-      # Repos with no v* tags yet get v0.0.0 from prepare; the first auto-tag becomes
-      # e.g. v0.1.0-rc.1. --generate-notes groups commits as Added/Fixed etc; see
-      # CHANGELOG.md (maintained via cliff.toml + git-cliff below) for curated history.
+      # --generate-notes groups commits as Added/Fixed etc. Attach each per-platform
+      # artifact dir only if it was actually downloaded (Windows is unverified and may
+      # be absent); gh release create errors if a glob matches nothing.
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -153,4 +159,11 @@ jobs:
           if [ "${{ needs.prepare.outputs.prerelease }}" = "true" ]; then
             ARGS+=(--prerelease)
           fi
-          gh release create "$TAG" "${ARGS[@]}" macos/** windows/**
+          FILES=()
+          [ -d macos ] && FILES+=(macos)
+          [ -d windows ] && FILES+=(windows)
+          if [ ${#FILES[@]} -eq 0 ]; then
+            echo "no build artifacts to attach"
+            exit 1
+          fi
+          gh release create "$TAG" "${ARGS[@]}" "${FILES[@]}"
