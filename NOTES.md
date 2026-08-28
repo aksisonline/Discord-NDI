@@ -102,6 +102,40 @@ Confirmed on the official Discord client (macOS, app-0.0.409, Aug 2026):
   Go Live tiles inside `videoContainer_*`. Class hashes change between builds, so match
   the prefix. `resolveOwner` warns when neither matches rather than silently guessing.
 
+## Privacy & consent gate
+
+Republishing every other person's video as its own NDI source is a privacy-affecting
+action for the *whole call*, not just the local user. Two behaviors are agreed:
+
+1. **Refuse to run unless the user has Discord's "Activity Status" enabled** (User
+   Settings → Activity → Activity Status — the toggle that broadcasts their current
+   activity to others; this is what the request calls "Activity Rich Presence").
+   Rationale: it is the one Discord-blessed, *visible* opt-in to "I am sharing what I'm
+doing," and gating on it stops the tool working silently for someone who has told
+   Discord not to surface their activity. With it off, `Controller.start()` must abort
+   **before** injecting the tap and show a clear panel message ("Enable Activity Status
+to use Discord-NDI").
+
+2. **Emit a Rich Presence while capturing.** So every participant in the VC sees
+   "Discord-NDI is capturing this call" on the user's profile/name — the in-call
+   transparency that makes the capture consensual for the people being captured. Set it
+   on `start()` and clear it on `stop()`.
+
+Both go in `app/index.ts` (gate in `Controller.start`) + `app/payload.ts` (presence
+setter), reflected in `app/ui.html`. Open questions — **do not guess from abstractions**;
+find both over CDP with `app/probe.ts` the same way everything else here was established:
+
+- **Detecting Activity Status.** Where does the official client expose the toggle? Almost
+  certainly a key in Discord's local settings store, reachable from the injected payload
+  the way the username lookup in the Findings section is. Probe `window`-attached setting
+  stores / `DiscordNative` to find the exact key and value shape.
+- **Setting Rich Presence from the official client.** The app is already injected into the
+  renderer, so the cheapest, VC-visible path is to call Discord's internal presence
+  setter (the same module that powers "Playing X") from the payload — not a separate RPC
+  client. The alternative is a Discord RPC client over the local `discord-ipc-*` socket,
+  which shows as a game/activity and is more code. Confirm via probe which API the client
+  actually exposes before writing the call.
+
 ## Packaging (Electrobun)
 
 Verified on macOS arm64:

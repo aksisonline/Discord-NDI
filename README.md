@@ -86,6 +86,19 @@ binary references only `napi_*` symbols, no V8 or node internals — so it loads
 rebuild. `ui.html` is already the whole interface. The one thing to verify is that
 Electrobun's bundled Bun has N-API enabled.
 
+## Privacy
+
+Discord-NDI republishes *other people's* video, so it is built to be consensual by
+default:
+
+- It refuses to attach unless you have Discord's **Activity Status** enabled (the toggle
+  that broadcasts your current activity to others). No activity sharing → no capture.
+- While capturing, it sets a **Rich Presence** reading *"Discord-NDI is capturing this
+  call"* on your profile, so everyone in the VC can see they are being captured.
+
+See `NOTES.md` (Privacy & consent gate) for the literal enforcement points and the
+recon still needed to wire the Discord-internal calls.
+
 ## Known ceilings
 
 - Frames cross the socket uncompressed: 720p30 BGRA ≈ 55 MB/s per source, fine to roughly
