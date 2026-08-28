@@ -140,12 +140,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: macos
+          path: macos
 
+      # Windows job was continue-on-error above in spirit; we use continue-on-error here
+      # so a failed Windows build doesn't block drafting the macOS half.
       - name: Download Windows artifact (skip on failure)
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: windows
+          path: windows
 
       # --generate-notes groups commits as Added/Fixed etc. Attach each per-platform
       # artifact dir only if it was actually downloaded (Windows is unverified and may
