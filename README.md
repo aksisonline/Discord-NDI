@@ -64,7 +64,7 @@ Discord's `<video>` elements are created imperatively and carry no React fiber, 
   from the member list, pairing a `usernameFont_*` label with an avatar whose URL embeds
   the user id. Users on a default avatar fall back to their id.
 
-All three are Discord internals with no stability guarantee. See `NOTES.md`.
+All three are Discord internals with no stability guarantee.
 
 ## Layout
 
@@ -96,8 +96,8 @@ default:
 - While capturing, it sets a **Rich Presence** reading *"Discord-NDI is capturing this
   call"* on your profile, so everyone in the VC can see they are being captured.
 
-See `NOTES.md` (Privacy & consent gate) for the literal enforcement points and the
-recon still needed to wire the Discord-internal calls.
+See `app/index.ts` (`Controller.start`) and `app/payload.ts` for the literal enforcement
+points.
 
 ## Known ceilings
 

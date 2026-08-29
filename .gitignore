@@ -2,6 +2,7 @@ node_modules/
 dist/
 build/
 *.log
+.DS_Store
 
 # Electrobun build output
 .electrobun/
