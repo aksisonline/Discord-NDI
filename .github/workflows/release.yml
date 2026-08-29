@@ -179,9 +179,12 @@ jobs:
               [ -f "$f" ] || continue
               base=$(basename "$f")
               if [ -n "${SEEN[$base]:-}" ]; then
-                # gh derives the asset name from the basename; dedupe collisions
-                # across macos/windows (e.g. both emit a metadata.json) via #label.
-                FILES+=("$f#${d}-${base}")
+                # gh names assets from the basename (a #label only changes the
+                # display label, not the name), so a real duplicate across
+                # macos/windows (e.g. both emit metadata.json) needs renaming.
+                renamed="$d/${d}-${base}"
+                mv "$f" "$renamed"
+                FILES+=("$renamed")
               else
                 SEEN[$base]=1
                 FILES+=("$f")
