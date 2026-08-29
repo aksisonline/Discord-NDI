@@ -14,6 +14,7 @@ export default {
             entrypoint: "src/bun/index.ts",
             // grandiose is a native .node; it must stay a runtime require and ship as a file.
             external: ["grandiose"],
+            minify: true,
         },
         copy: {
             // Single source of truth: the packaged UI is a straight copy of the
