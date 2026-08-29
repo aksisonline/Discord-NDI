@@ -172,10 +172,20 @@ jobs:
             ARGS+=(--prerelease)
           fi
           shopt -s globstar nullglob
+          declare -A SEEN
           FILES=()
           for d in macos windows; do
             [ -d "$d" ] && for f in "$d"/**/*; do
-              [ -f "$f" ] && FILES+=("$f")
+              [ -f "$f" ] || continue
+              base=$(basename "$f")
+              if [ -n "${SEEN[$base]:-}" ]; then
+                # gh derives the asset name from the basename; dedupe collisions
+                # across macos/windows (e.g. both emit a metadata.json) via #label.
+                FILES+=("$f#${d}-${base}")
+              else
+                SEEN[$base]=1
+                FILES+=("$f")
+              fi
             done
           done
           if [ ${#FILES[@]} -eq 0 ]; then
