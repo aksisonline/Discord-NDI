@@ -1,8 +1,9 @@
 name: build-release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
@@ -80,10 +81,17 @@ jobs:
           name: windows
           path: windows
 
+      - name: Create release if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" || gh release create "$TAG" --title "$TAG" --generate-notes
+
       - name: Upload to release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+          TAG: ${{ github.ref_name }}
         run: |
           shopt -s globstar nullglob
           declare -A SEEN
