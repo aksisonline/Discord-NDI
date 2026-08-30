@@ -11,6 +11,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SHELL_DIR="$REPO_ROOT/shell/discord-ndi-mac"
 OUT_DIR="${1:-$SHELL_DIR/build}"
 APP="$OUT_DIR/Discord-NDI.app"
+# CI passes this from the git tag; local runs fall back to the last released version.
+VERSION="${VERSION:-0.1.1}"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/backend/node_modules"
@@ -69,7 +71,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>$VERSION</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
