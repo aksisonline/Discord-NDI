@@ -205,11 +205,11 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
           if [ -n "$MAC_FILE" ]; then
-            sed -i -e "s|<!-- download-mac -->.*<!-- \/download-mac -->|<!-- download-mac --> [![Download for macOS](https://shieldcn.dev/badge/Download_macOS-blue.png?logo=apple)](https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$MAC_FILE) <!-- /download-mac -->|g" README.md || true
+            sed -i -e "s|<!-- download-mac -->.*<!-- \/download-mac -->|<!-- download-mac --> [![Download for macOS](https://img.shields.io/badge/Download_for_macOS-blue?style=for-the-badge&logo=apple)](https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$MAC_FILE) <!-- /download-mac -->|g" README.md || true
           fi
           
           if [ -n "$WIN_FILE" ]; then
-            sed -i -e "s|<!-- download-win -->.*<!-- /download-win -->|<!-- download-win --> [![Download for Windows](https://shieldcn.dev/badge/Download_Windows-blue.png?logo=windows)](https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$WIN_FILE) <!-- /download-win -->|g" README.md || true
+            sed -i -e "s|<!-- download-win -->.*<!-- /download-win -->|<!-- download-win --> [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-blue?style=for-the-badge&logo=windows)](https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$WIN_FILE) <!-- /download-win -->|g" README.md || true
           fi
           
           git add README.md

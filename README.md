@@ -2,10 +2,10 @@
   <img src="assets/icon.png" width="128" height="128" alt="Discord-NDI Logo" />
   <h1>Discord-NDI</h1>
   <p>
-    <a href="https://github.com/aksisonline/Discord-NDI/stargazers"><img src="https://shieldcn.dev/github/stars/aksisonline/Discord-NDI.svg" alt="GitHub stars"/></a>
-    <a href="https://github.com/aksisonline/Discord-NDI/network/members"><img src="https://shieldcn.dev/github/forks/aksisonline/Discord-NDI.svg?variant=outline" alt="GitHub forks"/></a>
-    <a href="https://github.com/aksisonline/Discord-NDI/issues"><img src="https://shieldcn.dev/github/issues/aksisonline/Discord-NDI.svg?variant=secondary" alt="GitHub issues"/></a>
-    <img src="https://shieldcn.dev/badge/Bun-v1.4.0-black.svg?logo=bun" alt="Bun"/>
+    <a href="https://github.com/aksisonline/Discord-NDI/stargazers"><img src="https://img.shields.io/github/stars/aksisonline/Discord-NDI?style=flat-square" alt="GitHub stars"/></a>
+    <a href="https://github.com/aksisonline/Discord-NDI/network/members"><img src="https://img.shields.io/github/forks/aksisonline/Discord-NDI?style=flat-square" alt="GitHub forks"/></a>
+    <a href="https://github.com/aksisonline/Discord-NDI/issues"><img src="https://img.shields.io/github/issues/aksisonline/Discord-NDI?style=flat-square" alt="GitHub issues"/></a>
+    <img src="https://img.shields.io/badge/Bun-v1.4.0-black?style=flat-square&logo=bun" alt="Bun"/>
   </p>
   <p><em>Every participant in your Discord call as its own NDI source, so OBS/vMix can composite them individually. Yourself included, cameras and Go Live alike.</em></p>
 </div>
@@ -38,8 +38,8 @@ flowchart LR
 
 ## 📥 Download (Latest CI Build)
 
-<!-- download-mac --> [![Download for macOS](https://shieldcn.dev/badge/Download_macOS-blue.png?logo=apple)](https://github.com/aksisonline/Discord-NDI/releases) <!-- /download-mac -->
-<!-- download-win --> [![Download for Windows](https://shieldcn.dev/badge/Download_Windows-blue.png?logo=windows)](https://github.com/aksisonline/Discord-NDI/releases) <!-- /download-win -->
+<!-- download-mac --> [![Download for macOS](https://img.shields.io/badge/Download_for_macOS-blue?style=for-the-badge&logo=apple)](https://github.com/aksisonline/Discord-NDI/releases) <!-- /download-mac -->
+<!-- download-win --> [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-blue?style=for-the-badge&logo=windows)](https://github.com/aksisonline/Discord-NDI/releases) <!-- /download-win -->
 
 ---
 
