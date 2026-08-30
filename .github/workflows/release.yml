@@ -174,20 +174,23 @@ jobs:
           shopt -s globstar nullglob
           declare -A SEEN
           FILES=()
+          MAC_FILE=""
+          WIN_FILE=""
           for d in macos windows; do
             [ -d "$d" ] && for f in "$d"/**/*; do
               [ -f "$f" ] || continue
               base=$(basename "$f")
               if [ -n "${SEEN[$base]:-}" ]; then
-                # gh names assets from the basename (a #label only changes the
-                # display label, not the name), so a real duplicate across
-                # macos/windows (e.g. both emit metadata.json) needs renaming.
                 renamed="$d/${d}-${base}"
                 mv "$f" "$renamed"
                 FILES+=("$renamed")
+                if [ "$d" = "macos" ]; then MAC_FILE="${d}-${base}"; fi
+                if [ "$d" = "windows" ]; then WIN_FILE="${d}-${base}"; fi
               else
                 SEEN[$base]=1
                 FILES+=("$f")
+                if [ "$d" = "macos" ]; then MAC_FILE="$base"; fi
+                if [ "$d" = "windows" ]; then WIN_FILE="$base"; fi
               fi
             done
           done
@@ -196,3 +199,21 @@ jobs:
             exit 1
           fi
           gh release create "$TAG" "${ARGS[@]}" "${FILES[@]}"
+          
+          # UPDATE README DYNAMICALLY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          if [ -n "$MAC_FILE" ]; then
+            sed -i -e "s|<!-- download-mac -->.*<!-- /download-mac -->|<!-- download-mac -->[![Download for macOS](https://shieldcn.dev/badge/Download-macOS-blue.svg?logo=apple)](https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$MAC_FILE)<!-- /download-mac -->|g" README.md || true
+          fi
+          
+          if [ -n "$WIN_FILE" ]; then
+            sed -i -e "s|<!-- download-win -->.*<!-- /download-win -->|<!-- download-win -->[![Download for Windows](https://shieldcn.dev/badge/Download-Windows-blue.svg?logo=windows)](https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$WIN_FILE)<!-- /download-win -->|g" README.md || true
+          fi
+          
+          git add README.md
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: update dynamic download links for $TAG [skip ci]"
+            git push origin HEAD:main || true
+          fi
