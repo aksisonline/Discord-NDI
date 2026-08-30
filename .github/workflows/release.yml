@@ -15,9 +15,12 @@ on:
 
 jobs:
   prepare:
+    # workflow_run fires for test completions on ANY branch — without the head_branch
+    # check, every green PR test run would cut a new draft prerelease.
     if: >-
       (github.event_name == 'workflow_dispatch') ||
-      (github.event.workflow_run.conclusion == 'success')
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     permissions:
       contents: write
