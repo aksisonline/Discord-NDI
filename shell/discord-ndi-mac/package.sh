@@ -28,12 +28,25 @@ cp -R "$REPO_ROOT/app/node_modules/file-uri-to-path" "$APP/Contents/Resources/ba
 cp "$(command -v bun)" "$APP/Contents/Resources/backend/bun"
 chmod +x "$APP/Contents/Resources/backend/bun"
 
-# assets/Discord-NDI.icon is the real Icon Composer / Liquid Glass source, but
-# compiling a bare .icon into Assets.car needs actool driven through an actual Xcode
-# project's asset catalog conventions — tried directly against a hand-built .appiconset
-# and it doesn't Just Work outside that (confirmed, not assumed). Falls back to the
-# flattened .icns (same asset Electrobun uses) via the older CFBundleIconFile until
-# there's a real Xcode project to drive proper actool compilation.
+# assets/Discord-NDI.icon is the Icon Composer / Liquid Glass source. actool compiles it
+# into Contents/Resources/Assets.car, which macOS 26 renders natively (layered glass, dark
+# and tinted appearances) when the plist names it via CFBundleIconName. actool refuses to
+# compile app icons without --output-partial-info-plist; the flag's output plist itself is
+# unused here (the keys are written into Info.plist by hand below). stdout is discarded:
+# actool always dumps a compilation-results plist there, even with --errors --warnings.
+# If compilation fails the following `cp` of the missing Assets.car aborts via `set -e`.
+# Its rendered fallback .icns is discarded too: the pre-26 fallback is the existing
+# flattened AppIcon.icns (the same asset Electrobun uses), referenced by CFBundleIconFile.
+ICON_BUILD="$(mktemp -d)"
+trap 'rm -rf "$ICON_BUILD"' EXIT
+xcrun actool "$REPO_ROOT/assets/Discord-NDI.icon" \
+  --compile "$ICON_BUILD" \
+  --platform macosx \
+  --minimum-deployment-target 26.0 \
+  --app-icon Discord-NDI \
+  --output-partial-info-plist "$ICON_BUILD/partial.plist" \
+  >/dev/null
+cp "$ICON_BUILD/Assets.car" "$APP/Contents/Resources/Assets.car"
 cp "$REPO_ROOT/assets/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -51,6 +64,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 	<string>Discord-NDI</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>Discord-NDI</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
