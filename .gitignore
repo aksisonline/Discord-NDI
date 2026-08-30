@@ -15,3 +15,7 @@ shell/**/node_modules/
 
 # Hutch toolchain dirs (generated dev cache, not source)
 .hutch/
+
+# Swift Package Manager build output
+.build/
+*.swiftpm/
