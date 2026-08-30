@@ -12,12 +12,25 @@ struct ContentView: View {
                     .font(.caption)
             }
 
+            if model.status.inCall {
+                channelBar
+            }
+
             // Liquid Glass is reserved for the one functional/status element, which
             // lives in the toolbar below — content rows here stay plain; per-row
             // glass overuse dilutes emphasis.
-            if model.status.sources.isEmpty {
-                Text(model.status.running ? "Attached. Waiting for someone to turn a camera on." : "Not capturing.")
-                    .foregroundStyle(.secondary)
+            if !model.status.running {
+                Spacer()
+                emptyState(icon: "antenna.radiowaves.left.and.right", title: "Attaching…", subtitle: "Connecting to Discord.")
+                Spacer()
+            } else if !model.status.inCall {
+                Spacer()
+                emptyState(icon: "person.wave.2", title: "No active voice call", subtitle: "Join a voice channel in Discord to start capturing.")
+                Spacer()
+            } else if model.status.sources.isEmpty {
+                Spacer()
+                emptyState(icon: "video.slash", title: "Waiting for video", subtitle: "No one in the call has a camera or stream on yet.")
+                Spacer()
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(model.status.sources.enumerated()), id: \.element.id) { index, source in
@@ -26,8 +39,6 @@ struct ContentView: View {
                     }
                 }
             }
-
-            Spacer(minLength: 0)
         }
         .padding(20)
         .frame(minWidth: 420, minHeight: 340, alignment: .topLeading)
@@ -53,6 +64,31 @@ struct ContentView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
         .glassEffect(.regular.tint(model.status.running ? .green : .clear), in: .capsule)
+    }
+
+    private var channelBar: some View {
+        HStack(spacing: 6) {
+            Text(model.status.name ?? "").fontWeight(.semibold)
+            Text("·").foregroundStyle(.tertiary)
+            Text("\(model.status.members) member\(model.status.members == 1 ? "" : "s")")
+            Text("·").foregroundStyle(.tertiary)
+            Text("\(model.status.sources.count) stream\(model.status.sources.count == 1 ? "" : "s")")
+        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+    }
+
+    private func emptyState(icon: String, title: String, subtitle: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 28))
+                .foregroundStyle(.tertiary)
+                .padding(.bottom, 4)
+            Text(title).font(.headline)
+            Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
     }
 }
 

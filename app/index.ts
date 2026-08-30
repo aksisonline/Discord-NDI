@@ -97,8 +97,46 @@ export class Controller {
         console.log("detached");
     }
 
-    status() {
-        return { running: this.running, port: this.port, debugPort: this.debugPort, ...status() };
+    /**
+     * Voice channel name + member count, read live from the sidebar rather than
+     * threaded through the video/audio wire protocol — this is call-wide metadata,
+     * not per-participant, and the CDP session can just be asked directly.
+     *
+     * Selectors found by probing a live client (2026-08, app-0.0.409): each connected
+     * member (camera on or off) gets a `voiceUser__<hash>` row in the channel sidebar;
+     * its closest `containerDefault_<hash>` ancestor holds the channel's `name__<hash>`
+     * label. Prefix-matched like every other DOM hook here — the hashes drift, the
+     * prefixes have not. No rows at all reads as "not in a call"; a solo call (no one
+     * else connected) is indistinguishable from that and reports the same — known
+     * ceiling, fine for a status display.
+     */
+    private async channelInfo(): Promise<{ name: string | null; members: number }> {
+        if (!this.session) return { name: null, members: 0 };
+        const expression = `(() => {
+            try {
+                const voiceUsers = document.querySelectorAll('[class*="voiceUser__"]');
+                if (!voiceUsers.length) return { name: null, members: 0 };
+                const container = voiceUsers[0].closest('[class*="containerDefault_"]');
+                const nameEl = container?.querySelector('[class*="name__"]');
+                // +1: this list doesn't include the operator's own row.
+                return { name: nameEl?.textContent ?? null, members: voiceUsers.length + 1 };
+            } catch {
+                return { name: null, members: 0 };
+            }
+        })()`;
+        try {
+            const result = await this.session.send("Runtime.evaluate", { expression, returnByValue: true });
+            return result.exceptionDetails ? { name: null, members: 0 } : result.result.value;
+        } catch {
+            return { name: null, members: 0 };
+        }
+    }
+
+    async status() {
+        return {
+            running: this.running, port: this.port, debugPort: this.debugPort,
+            ...await this.channelInfo(), ...status()
+        };
     }
 }
 
@@ -180,13 +218,13 @@ export function ui(controller: Controller, port: number, page?: string) {
         async fetch(req, server) {
             const { pathname } = new URL(req.url);
 
-            if (pathname === "/api/status") return Response.json(controller.status());
+            if (pathname === "/api/status") return Response.json(await controller.status());
 
             const enabledMatch = pathname.match(/^\/api\/source\/([^/]+)\/enabled$/);
             if (enabledMatch && req.method === "POST") {
                 const { enabled } = await req.json();
                 setEnabled(decodeURIComponent(enabledMatch[1]), !!enabled);
-                return Response.json(controller.status());
+                return Response.json(await controller.status());
             }
 
             const rotationMatch = pathname.match(/^\/api\/source\/([^/]+)\/rotation$/);
@@ -194,7 +232,7 @@ export function ui(controller: Controller, port: number, page?: string) {
                 const { rotation } = await req.json();
                 if (![0, 90, 180, 270].includes(rotation)) return new Response("rotation must be 0/90/180/270", { status: 400 });
                 setRotation(decodeURIComponent(rotationMatch[1]), rotation as Rotation);
-                return Response.json(controller.status());
+                return Response.json(await controller.status());
             }
 
             const viewMatch = pathname.match(/^\/view\/([^/]+)$/);

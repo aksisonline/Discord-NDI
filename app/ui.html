@@ -15,6 +15,17 @@
   .switch.sm::after { top:3px; left:3px; width:16px; height:16px; }
   .switch.sm[aria-pressed="true"] { background:var(--on); }
   .switch.sm[aria-pressed="true"]::after { transform:translateX(16px); }
+
+  .channel-bar { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13px; color:var(--dim); }
+  .channel-bar .name { color:var(--fg); font-weight:600; }
+  .channel-bar .dot { opacity:.5; }
+
+  /* Front-and-center empty state: no active call at all, not just no cameras. */
+  .no-vc { display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; margin-top:80px; color:var(--dim); }
+  .no-vc .icon { font-size:32px; margin-bottom:6px; opacity:.7; }
+  .no-vc .title { color:var(--fg); font-weight:600; font-size:15px; }
+  .no-vc .sub { font-size:13px; }
+
   ul { list-style:none; padding:0; margin:20px 0 0; display:flex; flex-direction:column; gap:8px; }
   li { background:var(--card); border-radius:10px; padding:12px 14px; border:1px solid transparent; }
   li.off { border-color:var(--off); opacity:.6; }
@@ -36,8 +47,22 @@
   <span class="label" id="state">Attaching…</span>
 </div>
 
+<div class="channel-bar" id="channelBar" hidden>
+  <span class="name" id="channelName"></span>
+  <span class="dot">·</span>
+  <span id="memberCount"></span>
+  <span class="dot">·</span>
+  <span id="streamCount"></span>
+</div>
+
+<div class="no-vc" id="noVc" hidden>
+  <div class="icon">&#127908;</div>
+  <div class="title">No active voice call</div>
+  <div class="sub">Join a voice channel in Discord to start capturing.</div>
+</div>
+
 <ul id="sources"></ul>
-<div class="empty" id="empty">Not capturing.</div>
+<div class="empty" id="empty" hidden></div>
 <div class="warn" id="warn" hidden></div>
 
 <script>
@@ -97,12 +122,22 @@ async function refresh() {
 
   $("state").textContent = s.running ? "Capturing" : "Attaching…";
 
-  render(s.sources);
+  const inCall = s.running && !!s.name;
 
-  $("empty").hidden = s.sources.length > 0;
-  $("empty").textContent = s.running
-    ? "Attached. Waiting for someone to turn a camera on."
-    : "Not capturing.";
+  $("channelBar").hidden = !inCall;
+  if (inCall) {
+    $("channelName").textContent = s.name;
+    $("memberCount").textContent = `${s.members} member${s.members === 1 ? "" : "s"}`;
+    $("streamCount").textContent = `${s.sources.length} stream${s.sources.length === 1 ? "" : "s"}`;
+  }
+
+  $("noVc").hidden = !s.running || inCall;
+
+  if (inCall) render(s.sources);
+  $("sources").hidden = !inCall;
+
+  $("empty").hidden = !inCall || s.sources.length > 0;
+  $("empty").textContent = "Attached. Waiting for someone to turn a camera on.";
 
   $("warn").hidden = !!s.ndi;
   $("warn").textContent = s.ndi ? "" : "NDI unavailable: " + (s.error || "grandiose failed to load");

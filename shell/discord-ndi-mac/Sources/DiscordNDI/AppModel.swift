@@ -8,7 +8,7 @@ final class AppModel {
     private let client: BackendClient
     private var pollTask: Task<Void, Never>?
 
-    var status = Status(running: false, port: 0, debugPort: 0, ndi: true, error: nil, sources: [])
+    var status = Status(running: false, port: 0, debugPort: 0, name: nil, members: 0, ndi: true, error: nil, sources: [])
     let uiPort: Int
 
     init() {
