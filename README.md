@@ -43,6 +43,17 @@ flowchart LR
 
 ---
 
+
+## 🌐 Don't use NDI? Use Web Overlays!
+
+Even though the app heavily relies on NDI, **you don't actually need to use NDI at all**. Just like StreamElements or VDO.ninja, Discord-NDI hosts a local web server that allows you to easily import participant cameras directly into OBS Studio!
+
+Simply open the `http://127.0.0.1:9333` control panel, click on the **Web Source** link for any participant, and paste that URL directly into an **OBS Browser Source**. 
+
+All video frames are seamlessly pulled straight over WebSockets without any NDI configuration required.
+
+---
+
 ## Quick Start
 
 > [!NOTE]  
