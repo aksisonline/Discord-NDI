@@ -23,6 +23,11 @@ export default {
             // path resolves the same way it does in the dev tree.
             "../../app/ui.html": "bun/ui.html",
 
+            // buildPayload() in app/index.ts bundles this from source at runtime (via
+            // new URL("./payload.ts", import.meta.url)) rather than at build time, so
+            // the raw source has to physically exist next to the bundled index.js too.
+            "../../app/payload.ts": "bun/payload.ts",
+
             // grandiose is external (kept as a bare `require`, not bundled as JS), which
             // only stops esbuild from choking on the native addon — it does not put the
             // addon anywhere the packaged app can find it at runtime. These three copy

@@ -5,6 +5,8 @@
 
 import { BrowserWindow } from "electrobun/main";
 
+import { findDiscord } from "../../../../app/cdp";
+import { relaunchWithDebugging } from "../../../../app/discord";
 import { Controller, ui } from "../../../../app/index";
 import { loadGrandiose } from "../../../../app/ndi";
 
@@ -26,5 +28,14 @@ new BrowserWindow({
     url: `http://127.0.0.1:${UI_PORT}/`,
     frame: { width: 440, height: 560, x: 120, y: 120 },
 });
+
+// Mirrors app/index.ts's CLI entrypoint: capture starts with the process, there is no
+// manual master on/off. Without this the panel had no way to ever start at all once the
+// toggle that used to call /api/start was removed.
+if (!await findDiscord(DEBUG_PORT).catch(() => null)) {
+    console.log("Discord is not exposing a debug port; relaunching it...");
+    await relaunchWithDebugging(DEBUG_PORT);
+}
+await controller.start().catch(e => console.error("failed to start capture:", e));
 
 process.on("exit", () => void controller.stop());
