@@ -4,6 +4,10 @@
 <style>
   :root { color-scheme: dark; --bg:#1a1b1e; --card:#25262b; --row:#2c2e33; --fg:#e9ecef; --dim:#909296; --on:#37b24d; --off:#495057; --accent:#4dabf7; }
   * { box-sizing: border-box; }
+  /* Several elements below set their own `display` (flex/etc), which otherwise ties
+     with and can lose to the UA stylesheet's [hidden] rule depending on cascade order —
+     silently leaving a "hidden" element visible. Force it here, once, for all of them. */
+  [hidden] { display: none !important; }
   body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--fg); padding:28px; }
   h1 { font-size:17px; margin:0 0 4px; letter-spacing:.3px; }
   .sub { color:var(--dim); font-size:13px; margin-bottom:22px; }
