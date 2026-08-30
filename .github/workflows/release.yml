@@ -132,13 +132,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
-          shopt -s nullglob
-          # Upload everything safely
-          gh release upload "$TAG" macos/* windows/* --clobber || true
-          
+          # windows/* preserves the nested build path (windows/stable-win-x64/...),
+          # so a plain glob upload hands gh a directory and fails silently under
+          # `|| true` — find the actual files instead of globbing top-level entries.
+          MAC_PATH=$(find macos -name "*.dmg" | head -n 1)
+          WIN_PATH=$(find windows -name "*Setup.exe" | head -n 1)
+
+          UPLOAD_PATHS=("$MAC_PATH")
+          [ -n "$WIN_PATH" ] && UPLOAD_PATHS+=("$WIN_PATH")
+          gh release upload "$TAG" "${UPLOAD_PATHS[@]}" --clobber
+
           # Extract the primary filenames for the README links
-          MAC_FILE=$(find macos -name "*.dmg" -exec basename {} \; | head -n 1)
-          WIN_FILE=$(find windows -name "*Setup.exe" -exec basename {} \; | head -n 1)
+          MAC_FILE=$(basename "$MAC_PATH")
+          WIN_FILE=$([ -n "$WIN_PATH" ] && basename "$WIN_PATH")
           
           # UPDATE README DYNAMICALLY
           git config user.name "github-actions[bot]"
