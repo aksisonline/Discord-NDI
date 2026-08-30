@@ -64,6 +64,12 @@ jobs:
             require("fs").writeFileSync(process.env.GITHUB_OUTPUT,
               `tag=${tag}\nprerelease=${prerelease}\n`, { flag: "a" });
 
+  # Native SwiftUI shell — "for the looks", per the call to build mac natively and
+  # leave Windows on Electrobun. package.sh assembles a real .app: swift build for the
+  # shell, plus a plain `bun build` of the existing app/index.ts backend run by a
+  # bundled copy of the bun executable (not `bun build --compile`: its runtime can't
+  # resolve grandiose's own nested `require("bindings")` at all — confirmed by testing
+  # directly, not assumed).
   build-macos:
     needs: [prepare]
     runs-on: macos-latest
@@ -78,26 +84,18 @@ jobs:
         # grandiose compiles via node-gyp; macos runners have Xcode CLT for it.
         run: bun install --frozen-lockfile
 
-      - name: Build Electrobun package
-        working-directory: shell/discord-ndi
-        env:
-          # HUTCH_HOME must point at a per-project dir; Hutch refuses to install into
-          # what it thinks is an unmarked shared home.
-          HUTCH_HOME: ${{ github.workspace }}/shell/discord-ndi/.hutch
-        run: bunx electrobun build --env=stable
+      - name: Assemble Discord-NDI.app
+        run: bash shell/discord-ndi-mac/package.sh
 
-      - name: Diagnostic - list artifact outputs
-        working-directory: shell/discord-ndi
-        run: ls -la artifacts/
+      - name: Create DMG
+        working-directory: shell/discord-ndi-mac/build
+        run: hdiutil create -volname Discord-NDI -srcfolder Discord-NDI.app -ov -format UDZO Discord-NDI.dmg
 
       - uses: actions/upload-artifact@v4
         with:
           name: macos
-          # electrobun writes the user-facing installer to artifacts/ (not build/,
-          # which just holds the unpacked .app) — only the .dmg is an installable,
-          # the sibling .tar.zst/.json there are auto-update payloads, not for release.
           if-no-files-found: error
-          path: shell/discord-ndi/artifacts/*.dmg
+          path: shell/discord-ndi-mac/build/Discord-NDI.dmg
 
   # Entirely unverified — no Windows machine has ever run this project. Keep it
   # non-blocking so a macOS-only draft still ships; the Windows artifact simply

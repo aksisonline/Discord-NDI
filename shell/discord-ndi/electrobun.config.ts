@@ -47,14 +47,12 @@ export default {
             "../../app/node_modules/bindings": "bun/node_modules/bindings",
             "../../app/node_modules/file-uri-to-path": "bun/node_modules/file-uri-to-path",
         },
-        mac: { bundleCEF: false },
-        win: { bundleCEF: false },
-        linux: { bundleCEF: false },
         // Icon fields confirmed against .hutch/devkit/api/config/ElectrobunConfig.ts.
-        // Design source is assets/icon.svg; wire these up once a .iconset/.ico/.png
-        // (or a Liquid Glass .icon bundle from Icon Composer, for mac) exists from it.
-        // mac:   { icons: "../../assets/icon.iconset" },  // .iconset folder or .icon file
-        // win:   { icon:  "../../assets/icon.ico" },       // .ico or .png
-        // linux: { icon:  "../../assets/icon.png" },       // .png
+        // Generated (sips + iconutil/Pillow) from assets/Discord-NDI-iOS-Default-1024@1x.png,
+        // Icon Composer's flattened export of assets/Discord-NDI.icon (the Liquid Glass
+        // source — see shell/discord-ndi-mac/package.sh for where *that* is used instead).
+        mac: { bundleCEF: false, icons: "../../assets/icon.iconset" },
+        win: { bundleCEF: false, icon: "../../assets/icon.ico" },
+        linux: { bundleCEF: false, icon: "../../assets/icon.png" },
     },
 } satisfies ElectrobunConfig;
