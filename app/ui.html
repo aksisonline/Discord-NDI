@@ -126,10 +126,15 @@ async function refresh() {
 
   $("state").textContent = s.running ? "Capturing" : "Attaching…";
 
-  const inCall = s.running && !!s.name;
+  // channelInfo() can only read the channel name/members while the sidebar of the
+  // guild you're actually connected to is the one on screen (see its doc comment) —
+  // that's independent of whether capture is happening, so it must not hide real,
+  // already-captured sources just because the name lookup came up empty.
+  const hasSources = s.running && s.sources.length > 0;
+  const inCall = s.running && (!!s.name || hasSources);
 
-  $("channelBar").hidden = !inCall;
-  if (inCall) {
+  $("channelBar").hidden = !s.name;
+  if (s.name) {
     $("channelName").textContent = s.name;
     $("memberCount").textContent = `${s.members} member${s.members === 1 ? "" : "s"}`;
     $("streamCount").textContent = `${s.sources.length} stream${s.sources.length === 1 ? "" : "s"}`;
@@ -137,10 +142,10 @@ async function refresh() {
 
   $("noVc").hidden = !s.running || inCall;
 
-  if (inCall) render(s.sources);
-  $("sources").hidden = !inCall;
+  if (hasSources) render(s.sources);
+  $("sources").hidden = !hasSources;
 
-  $("empty").hidden = !inCall || s.sources.length > 0;
+  $("empty").hidden = !inCall || hasSources;
   $("empty").textContent = "Attached. Waiting for someone to turn a camera on.";
 
   $("warn").hidden = !!s.ndi;

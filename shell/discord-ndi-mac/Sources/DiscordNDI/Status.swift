@@ -13,7 +13,7 @@ struct Status: Decodable {
     var error: String?
     var sources: [Source]
 
-    var inCall: Bool { running && name != nil }
+    var inCall: Bool { running && (name != nil || !sources.isEmpty) }
 
     struct Source: Decodable, Identifiable {
         var key: String

@@ -12,7 +12,7 @@ struct ContentView: View {
                     .font(.caption)
             }
 
-            if model.status.inCall {
+            if model.status.name != nil {
                 channelBar
             }
 
