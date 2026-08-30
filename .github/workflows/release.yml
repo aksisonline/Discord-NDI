@@ -86,7 +86,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release view "$TAG" || gh release create "$TAG" --title "$TAG" --generate-notes
+          # Ensure it isn't a draft if it already exists
+          gh release view "$TAG" && gh release edit "$TAG" --draft=false || gh release create "$TAG" --title "$TAG" --generate-notes
 
       - name: Upload to release
         env:
