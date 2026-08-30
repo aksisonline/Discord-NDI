@@ -87,6 +87,51 @@ function refreshNames() {
 const sourceKey = (o: Owner) => (o.screenshare ? `${o.userId}:screen` : o.userId);
 const sourceName = (o: Owner) => (o.screenshare ? `Discord – ${o.name} – Screen` : `Discord – ${o.name}`);
 
+function setStreamerMode(enabled: boolean) {
+    const trySet = () => {
+        try {
+            const wp = (window as any).webpackChunkdiscord_app;
+            if (!wp) return false;
+            let req: any;
+            wp.push([[Symbol()], {}, (r: any) => { req = r; }]);
+            if (!req || !req.c) return false;
+
+            let dispatcher: any = null;
+            for (const m of Object.values(req.c) as any[]) {
+                if (!m?.exports) continue;
+                if (typeof m.exports.dispatch === "function") dispatcher = m.exports;
+                else if (typeof m.exports.Z?.dispatch === "function") dispatcher = m.exports.Z;
+                else if (typeof m.exports.default?.dispatch === "function") dispatcher = m.exports.default;
+                if (dispatcher && typeof dispatcher.subscribe === "function") break;
+                else dispatcher = null;
+            }
+
+            if (dispatcher) {
+                dispatcher.dispatch({
+                    type: "STREAMER_MODE_UPDATE",
+                    key: "enabled",
+                    value: enabled
+                });
+                console.log(`[Discord-NDI] Streamer mode ${enabled ? "enabled" : "disabled"}`);
+                return true;
+            }
+        } catch (e) {
+            console.error("[Discord-NDI] Failed to toggle streamer mode:", e);
+        }
+        return false;
+    };
+
+    if (!trySet()) {
+        const interval = setInterval(() => {
+            if ((window as any).__discordNdi?.stopped) {
+                clearInterval(interval);
+            } else if (trySet()) {
+                clearInterval(interval);
+            }
+        }, 1000);
+    }
+}
+
 class Tap {
     private ws: WebSocket | null = null;
     private retry: any = null;
@@ -101,6 +146,7 @@ class Tap {
     private bound = new WeakMap<HTMLMediaElement, MediaStreamTrack[]>();
 
     start() {
+        setStreamerMode(true);
         this.connect();
         const timer = setInterval(() => this.reconcile(), RECONCILE_MS);
         (this as any).timer = timer;
@@ -108,6 +154,7 @@ class Tap {
     }
 
     stop() {
+        setStreamerMode(false);
         this.stopped = true;
         clearInterval((this as any).timer);
         if (this.retry) clearTimeout(this.retry);
