@@ -130,11 +130,11 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
           if [ -n "$MAC_FILE" ]; then
-            sed -i -e "s|<!-- download-mac -->.*<!-- /download-mac -->|<!-- download-mac --><a href=\"https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$MAC_FILE\"><img src=\"https://shieldcn.dev/badge/Download_macOS-blue.png?logo=apple\" alt=\"Download macOS\"/></a><!-- /download-mac -->|g" README.md || true
+            sed -i -e "s|<!-- download-mac -->.*<!-- /download-mac -->|<!-- download-mac --><a href=\"https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$MAC_FILE\"><img src=\"https://shieldcn.dev/badge/Download%20for-MacOS-3B2D8A.svg?logo=apple\" alt=\"Download macOS\" /></a><!-- /download-mac -->|g" README.md || true
           fi
           
           if [ -n "$WIN_FILE" ]; then
-            sed -i -e "s|<!-- download-win -->.*<!-- /download-win -->|<!-- download-win --><a href=\"https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$WIN_FILE\"><img src=\"https://shieldcn.dev/badge/Download_Windows-blue.png?logo=windows\" alt=\"Download Windows\"/></a><!-- /download-win -->|g" README.md || true
+            sed -i -e "s|<!-- download-win -->.*<!-- /download-win -->|<!-- download-win --><a href=\"https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$WIN_FILE\"><img src=\"https://shieldcn.dev/badge/Download%20for-Windows-3B2D8A.svg?logo=ri%3AFaMicrosoft\" alt=\"Download Windows\" /></a><!-- /download-win -->|g" README.md || true
           fi
           
           git add README.md

@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="assets/icon.png" width="128" height="128" alt="Discord-NDI Logo" />
-  <h1>Discord-NDI</h1>
+  <img src="https://shieldcn.dev/header/glow.svg?title=Discord-NDI&subtitle=Every+participant+in+your+Discord+call+as+its+own+NDI+source&logo=https://raw.githubusercontent.com/aksisonline/Discord-NDI/main/assets/icon.png&theme=indigo" alt="Discord-NDI Header" width="750" />
+  
   <p>
     <a href="https://github.com/aksisonline/Discord-NDI/stargazers"><img src="https://shieldcn.dev/github/stars/aksisonline/Discord-NDI.svg" alt="GitHub stars"/></a>
     <a href="https://github.com/aksisonline/Discord-NDI/network/members"><img src="https://shieldcn.dev/github/forks/aksisonline/Discord-NDI.svg?variant=outline" alt="GitHub forks"/></a>
@@ -8,10 +8,9 @@
     <img src="https://shieldcn.dev/badge/Bun-v1.4.0-black.svg?logo=bun" alt="Bun"/>
   </p>
   <p>
-    <!-- download-mac --><a href="https://github.com/aksisonline/Discord-NDI/releases"><img src="https://shieldcn.dev/badge/Download_macOS-blue.png?logo=apple" alt="Download macOS"/></a><!-- /download-mac -->
-    <!-- download-win --><a href="https://github.com/aksisonline/Discord-NDI/releases"><img src="https://shieldcn.dev/badge/Download_Windows-blue.png?logo=windows" alt="Download Windows"/></a><!-- /download-win -->
+    <!-- download-mac --><a href="https://github.com/aksisonline/Discord-NDI/releases"><img src="https://shieldcn.dev/badge/Download%20for-MacOS-3B2D8A.svg?logo=apple" alt="Download macOS" /></a><!-- /download-mac -->
+    <!-- download-win --><a href="https://github.com/aksisonline/Discord-NDI/releases"><img src="https://shieldcn.dev/badge/Download%20for-Windows-3B2D8A.svg?logo=ri%3AFaMicrosoft" alt="Download Windows" /></a><!-- /download-win -->
   </p>
-  <p><em>Every participant in your Discord call as its own NDI source, so OBS/vMix can composite them individually. Yourself included, cameras and Go Live alike.</em></p>
 </div>
 
 <br/>
