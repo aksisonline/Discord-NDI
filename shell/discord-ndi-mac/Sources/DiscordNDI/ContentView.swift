@@ -6,16 +6,15 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            header
-
             if !model.status.ndi {
                 Label("NDI unavailable: \(model.status.error ?? "grandiose failed to load")", systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
                     .font(.caption)
             }
 
-            // Liquid Glass is reserved for the one functional/status element above;
-            // content rows below are plain, per-row glass overuse dilutes emphasis.
+            // Liquid Glass is reserved for the one functional/status element, which
+            // lives in the toolbar below — content rows here stay plain; per-row
+            // glass overuse dilutes emphasis.
             if model.status.sources.isEmpty {
                 Text(model.status.running ? "Attached. Waiting for someone to turn a camera on." : "Not capturing.")
                     .foregroundStyle(.secondary)
@@ -30,13 +29,17 @@ struct ContentView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 20)
-        // fullSizeContentView (in transparentTitlebar()) extends content up under the
-        // traffic lights; clear them explicitly instead of guessing a fixed inset.
-        .padding(.top, 28)
+        .padding(20)
         .frame(minWidth: 420, minHeight: 340, alignment: .topLeading)
-        .transparentTitlebar()
+        // A window with a toolbar gets a translucent unified titlebar for free — no
+        // manual NSVisualEffectView/titlebarAppearsTransparent surgery needed, and
+        // fighting it with custom backgrounds there only clashes with the material.
+        // containerBackground now unifies with that same toolbar material instead of
+        // stopping short of it, which is what broke without a real toolbar present.
+        .containerBackground(.thickMaterial, for: .window)
+        .toolbar {
+            ToolbarItem(placement: .principal) { header }
+        }
     }
 
     private var header: some View {
@@ -48,7 +51,7 @@ struct ContentView: View {
                 .font(.headline)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.vertical, 6)
         .glassEffect(.regular.tint(model.status.running ? .green : .clear), in: .capsule)
     }
 }
