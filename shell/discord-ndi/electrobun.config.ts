@@ -50,11 +50,11 @@ export default {
         mac: { bundleCEF: false },
         win: { bundleCEF: false },
         linux: { bundleCEF: false },
-        // Icon assets land in assets/; field names below are the confirmed real ones
-        // (checked against .hutch/devkit/api/config/ElectrobunConfig.ts). Uncomment
-        // once a design exists.
-        // mac:   { icons: "assets/App.iconset" },  // .iconset folder or .icon file
-        // win:   { icon:  "assets/icon.ico" },     // .ico or .png
-        // linux: { icon:  "assets/icon.png" },     // .png
+        // Icon fields confirmed against .hutch/devkit/api/config/ElectrobunConfig.ts.
+        // Design source is assets/icon.svg; wire these up once a .iconset/.ico/.png
+        // (or a Liquid Glass .icon bundle from Icon Composer, for mac) exists from it.
+        // mac:   { icons: "../../assets/icon.iconset" },  // .iconset folder or .icon file
+        // win:   { icon:  "../../assets/icon.ico" },       // .ico or .png
+        // linux: { icon:  "../../assets/icon.png" },       // .png
     },
 } satisfies ElectrobunConfig;
