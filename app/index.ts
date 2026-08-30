@@ -260,8 +260,27 @@ if (import.meta.main) {
     if (!values.headless) ui(controller, Number(values.ui));
     await controller.start();
 
-    process.on("SIGINT", async () => {
+    let shuttingDown = false;
+    async function shutdown() {
+        if (shuttingDown) return;
+        shuttingDown = true;
         await controller.stop();
         process.exit(0);
-    });
+    }
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown); // sent by e.g. Foundation's Process.terminate(), when run as a child
+
+    // A packaged shell (the SwiftUI app) spawns this as a child process, but has no
+    // portable way to guarantee a signal reaches it if the parent crashes outright
+    // rather than quitting cleanly — an orphaned process would otherwise keep the
+    // ports bound indefinitely. Polling ppid is the standard, dependency-free way to
+    // detect that: it changes (usually to 1, launchd) the moment the parent is gone.
+    const parentPid = process.ppid;
+    setInterval(() => {
+        if (process.ppid !== parentPid) {
+            console.error("parent process gone; shutting down");
+            void shutdown();
+        }
+    }, 2000);
 }
