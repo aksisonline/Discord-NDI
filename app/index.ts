@@ -16,10 +16,20 @@ import { relaunchWithDebugging } from "./discord";
 import { closeAll, loadGrandiose, serve, setEnabled, setRotation, setViewerHooks, sources, status } from "./ndi";
 import type { Rotation } from "./rotate";
 
-/** Built once and cached; the payload is a self-contained bundle with the port baked in. */
+/**
+ * Built once and cached; the payload is a self-contained bundle with the port baked in.
+ *
+ * Inside a `bun build --compile` binary, import.meta.url resolves to a virtual
+ * `/$bunfs/root/...` path that Bun.build() can't read from at runtime (ENOENT) — a
+ * packaged build ships payload.ts as a real sibling file instead (same treatment as
+ * grandiose) and points here via env var, same override pattern the SwiftUI shell
+ * already uses for the app/ entrypoint itself.
+ */
 export async function buildPayload(port: number) {
+    const payloadPath = process.env["DISCORD_NDI_PAYLOAD_TS"]
+        ?? new URL("./payload.ts", import.meta.url).pathname;
     const built = await Bun.build({
-        entrypoints: [new URL("./payload.ts", import.meta.url).pathname],
+        entrypoints: [payloadPath],
         target: "browser",
         minify: false,
         define: { __PORT__: String(port) }
@@ -105,30 +115,44 @@ export class Controller {
      * Selectors found by probing a live client (2026-08, app-0.0.409): the sidebar
      * renders a `voiceUser__<hash>` row per connected member (camera on or off) under
      * EVERY populated voice channel in the guild, not just the one the operator is in —
-     * so the channel to count has to be identified first, not assumed from the first
-     * row found. `titleWrapper__<hash>` is the persistent connected-call widget's title,
-     * which only ever names the operator's own channel; match that name against the
-     * sidebar's `containerDefault_<hash>` channel containers (each holding a
-     * `name__<hash>` label) to find the right one before counting its rows. Prefix-
-     * matched like every other DOM hook here — the hashes drift, the prefixes have not.
-     * No widget at all reads as "not in a call".
+     * so the right row has to be identified, not assumed from the first one found.
+     *
+     * `titleWrapper__<hash>` was tried first and is wrong: it's just the header of
+     * whatever channel is *currently being viewed* (text or voice), unrelated to which
+     * VC the operator is connected to — confirmed live, it was reporting a text
+     * channel's name as though it were an active call. Fixed by identifying the
+     * operator's own row instead: `[aria-label="Mute"]` is the always-rendered
+     * account-panel control (regardless of connection state), whose `panels__<hash>`
+     * ancestor holds the operator's own display name in a `title_<hash>` element; match
+     * that against each `voiceUser__<hash>` row's aria-label to find their row, then its
+     * `containerDefault_<hash>` ancestor for the channel's `name__<hash>` label and
+     * sibling row count. Prefix-matched like every other DOM hook here — the hashes
+     * drift, the prefixes have not.
+     *
+     * Known ceiling: only the *currently-viewed guild's* sidebar is in the DOM at all —
+     * if the operator is connected to a voice channel in a different guild than the one
+     * they're currently browsing, no row for them exists to find here, and this reports
+     * "not in a call" even though they are. Detecting that would need Discord's
+     * internal state stores, not DOM scraping.
      */
     private async channelInfo(): Promise<{ name: string | null; members: number }> {
         if (!this.session) return { name: null, members: 0 };
         const expression = `(() => {
             try {
-                const widget = document.querySelector('[class*="titleWrapper__"]');
-                const name = widget?.textContent?.trim() ?? null;
-                if (!name) return { name: null, members: 0 };
+                const muteBtn = document.querySelector('[aria-label="Mute"], [aria-label="Unmute"]');
+                const myName = muteBtn?.closest('[class*="panels__"]')
+                    ?.querySelector('[class*="title_"]')?.textContent?.trim();
+                if (!myName) return { name: null, members: 0 };
 
-                const containers = new Set(
-                    [...document.querySelectorAll('[class*="voiceUser__"]')]
-                        .map(v => v.closest('[class*="containerDefault_"]'))
+                const mine = [...document.querySelectorAll('[class*="voiceUser__"]')].find(
+                    v => v.querySelector('[aria-label]')?.getAttribute('aria-label')?.startsWith(myName)
                 );
-                const match = [...containers].find(
-                    c => c?.querySelector('[class*="name__"]')?.textContent?.trim() === name
-                );
-                return { name, members: match?.querySelectorAll('[class*="voiceUser__"]').length ?? 0 };
+                if (!mine) return { name: null, members: 0 };
+
+                const container = mine.closest('[class*="containerDefault_"]');
+                const name = container?.querySelector('[class*="name__"]')?.textContent?.trim() ?? null;
+                const members = container?.querySelectorAll('[class*="voiceUser__"]').length ?? 0;
+                return { name, members };
             } catch {
                 return { name: null, members: 0 };
             }
