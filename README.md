@@ -38,8 +38,8 @@ flowchart LR
 
 ## 📥 Download (Latest CI Build)
 
-<!-- download-mac -->[![Download for macOS](https://shieldcn.dev/badge/Download-macOS-blue.svg?logo=apple)](https://github.com/aksisonline/Discord-NDI/releases)<!-- /download-mac -->
-<!-- download-win -->[![Download for Windows](https://shieldcn.dev/badge/Download-Windows-blue.svg?logo=windows)](https://github.com/aksisonline/Discord-NDI/releases)<!-- /download-win -->
+<!-- download-mac -->[![Download for macOS](https://shieldcn.dev/badge/Download_macOS-blue.png?logo=apple)](https://github.com/aksisonline/Discord-NDI/releases)<!-- /download-mac -->
+<!-- download-win -->[![Download for Windows](https://shieldcn.dev/badge/Download_Windows-blue.png?logo=windows)](https://github.com/aksisonline/Discord-NDI/releases)<!-- /download-win -->
 
 ---
 
