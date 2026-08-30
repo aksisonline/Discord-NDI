@@ -58,7 +58,7 @@ async function launch(debugPort: number) {
 
     // On Windows, Discord.exe lives in a versioned app-* folder that changes with every
     // update. Update.exe is the stable entry point and forwards args to the current one.
-    const updater = `${process.env.LOCALAPPDATA}\\Discord\\Update.exe`;
+    const updater = `${process.env["LOCALAPPDATA"]}\\Discord\\Update.exe`;
     if (await Bun.file(updater).exists()) {
         await Bun.$`${updater} --processStart Discord.exe --process-start-args ${flag}`.nothrow().quiet();
         return;

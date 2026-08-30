@@ -12,7 +12,7 @@
 import { parseArgs } from "util";
 
 import { findDiscord, Session } from "./cdp";
-import { relaunchWithDebugging, waitForCdp } from "./discord";
+import { relaunchWithDebugging } from "./discord";
 import { closeAll, loadGrandiose, serve, setEnabled, setRotation, setViewerHooks, sources, status } from "./ndi";
 import type { Rotation } from "./rotate";
 
@@ -173,7 +173,7 @@ export function ui(controller: Controller, port: number, page?: string) {
         }
     });
 
-    const server = Bun.serve<ViewerSocketData, {}>({
+    const server = Bun.serve<ViewerSocketData>({
         hostname: "127.0.0.1",
         port,
         async fetch(req, server) {

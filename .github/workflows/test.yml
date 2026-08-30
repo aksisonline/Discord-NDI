@@ -24,9 +24,31 @@ jobs:
         run: bun test
 
   # Kept as a named job so the release workflow's test gate can depend on the
-  # whole matrix, and so a future lint/type-check job lands in the same gate.
+  # whole matrix, and so a future lint job lands in the same gate.
   check:
     needs: [app]
     runs-on: ubuntu-latest
     steps:
-      - run: echo "All checks passed"
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install shell dependencies
+        working-directory: shell/discord-ndi
+        run: bun install --frozen-lockfile
+
+      # sync bootstraps .hutch/devkit (Electrobun's ambient types + vendored
+      # tsconfig) without a full platform build — cheap and cross-platform.
+      - name: Sync Electrobun devkit
+        working-directory: shell/discord-ndi
+        env:
+          HUTCH_HOME: ${{ github.workspace }}/shell/discord-ndi/.hutch
+        run: bunx electrobun sync --env=stable
+
+      # Type-checks app/ through shell/discord-ndi's tsconfig, since that's the
+      # one config that actually resolves Electrobun's ambient types. Pinned
+      # to typescript@5.7 in shell/discord-ndi's devDependencies: TS7 hard-errors
+      # on Electrobun's own vendored tsconfig (removed `baseUrl`), which isn't
+      # ours to patch — it's toolchain-generated and gitignored.
+      - name: Type check
+        working-directory: shell/discord-ndi
+        run: bunx tsc -p tsconfig.json --noEmit
