@@ -1,3 +1,5 @@
+import { createServer } from "net";
+
 /*
  * Electrobun main process. Owns the NDI senders and the CDP attachment; the window is
  * only a control surface.
@@ -11,9 +13,25 @@ import { Controller, ui } from "../../../../app/index";
 import { loadGrandiose } from "../../../../app/ndi";
 
 
-const PORT = 9191;
+const PORT = await findPort(9191);
 const DEBUG_PORT = 9222;
-const UI_PORT = 9333;
+async function findPort(preferred: number): Promise<number> {
+    return new Promise((resolve) => {
+        const srv = createServer();
+        srv.on("error", () => {
+            const fallback = createServer();
+            fallback.listen(0, "127.0.0.1", () => {
+                const port = (fallback.address() as any).port;
+                fallback.close(() => resolve(port));
+            });
+        });
+        srv.listen(preferred, "127.0.0.1", () => {
+            srv.close(() => resolve(preferred));
+        });
+    });
+}
+
+const UI_PORT = await findPort(9333);
 
 await loadGrandiose();
 const controller = new Controller(PORT, DEBUG_PORT);

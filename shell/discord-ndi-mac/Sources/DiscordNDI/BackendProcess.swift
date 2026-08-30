@@ -5,6 +5,7 @@ import Foundation
 /// CDP attach, renderer injection, and NDI sending all stay exactly as they are.
 final class BackendProcess {
     let uiPort = BackendProcess.findPort(preferred: 9333)
+    let backendPort = BackendProcess.findPort(preferred: 9191)
 
     private static func findPort(preferred: Int) -> Int {
         var addr = sockaddr_in()
@@ -83,7 +84,7 @@ final class BackendProcess {
         // This app only ignores ui.html and talks to the same /api/* JSON endpoints.
         if let (bun, indexJS) = bundledBackend {
             task.executableURL = bun
-            task.arguments = ["run", indexJS.path, "--ui", String(uiPort)]
+            task.arguments = ["run", indexJS.path, "--ui", String(uiPort), "--port", String(backendPort)]
             // Real on-disk index.js next to a real on-disk payload.ts/node_modules — the
             // same layout already proven to work for the standalone app and Electrobun
             // shell, so import.meta.url-relative resolution just works unmodified.
@@ -92,10 +93,10 @@ final class BackendProcess {
             let bun = ProcessInfo.processInfo.environment["BUN_PATH"] ?? "/usr/bin/env"
             if bun == "/usr/bin/env" {
                 task.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-                task.arguments = ["bun", "run", appEntrypoint.path, "--ui", String(uiPort)]
+                task.arguments = ["bun", "run", appEntrypoint.path, "--ui", String(uiPort), "--port", String(backendPort)]
             } else {
                 task.executableURL = URL(fileURLWithPath: bun)
-                task.arguments = ["run", appEntrypoint.path, "--ui", String(uiPort)]
+                task.arguments = ["run", appEntrypoint.path, "--ui", String(uiPort), "--port", String(backendPort)]
             }
         }
 
