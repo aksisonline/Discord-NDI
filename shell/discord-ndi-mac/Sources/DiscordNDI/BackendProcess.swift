@@ -4,7 +4,46 @@ import Foundation
 /// This is a native shell over that backend, not a reimplementation of it — the
 /// CDP attach, renderer injection, and NDI sending all stay exactly as they are.
 final class BackendProcess {
-    let uiPort = 9333
+    let uiPort = BackendProcess.findPort(preferred: 9333)
+
+    private static func findPort(preferred: Int) -> Int {
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        addr.sin_port = in_port_t(UInt16(preferred).bigEndian)
+        
+        var fd = socket(AF_INET, SOCK_STREAM, 0)
+        var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+        
+        let result = withUnsafePointer(to: &addr) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                bind(fd, sa, len)
+            }
+        }
+        
+        if result != 0 {
+            close(fd)
+            fd = socket(AF_INET, SOCK_STREAM, 0)
+            addr.sin_port = 0
+            _ = withUnsafePointer(to: &addr) { ptr in
+                ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                    bind(fd, sa, len)
+                }
+            }
+        }
+        
+        _ = withUnsafeMutablePointer(to: &addr) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                getsockname(fd, sa, &len)
+            }
+        }
+        
+        let port = Int(UInt16(bigEndian: addr.sin_port))
+        close(fd)
+        return port
+    }
+
     private var process: Process?
 
     /// A packaged build ships a plain `bun build` bundle (not `--compile`: Bun's
