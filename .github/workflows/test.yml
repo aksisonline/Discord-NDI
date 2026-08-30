@@ -34,9 +34,14 @@ jobs:
 
       # tsc resolves app/ndi.ts's bare `grandiose` import relative to app/, not
       # shell/discord-ndi/ — needs app's own node_modules present too.
+      # --ignore-scripts: grandiose is an optionalDependency whose install script
+      # (node-gyp rebuild) fails on Linux; Bun then silently drops the whole package
+      # from node_modules, and tsc errors TS2307 on `await import("grandiose")`.
+      # Skipping scripts keeps the extracted package (and its index.d.ts) on disk,
+      # which is all a type check needs.
       - name: Install app dependencies
         working-directory: app
-        run: bun install --frozen-lockfile
+        run: bun install --frozen-lockfile --ignore-scripts
 
       - name: Install shell dependencies
         working-directory: shell/discord-ndi
