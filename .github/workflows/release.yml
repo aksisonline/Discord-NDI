@@ -94,37 +94,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          shopt -s globstar nullglob
-          declare -A SEEN
-          FILES=()
-          MAC_FILE=""
-          WIN_FILE=""
-          for d in macos windows; do
-            [ -d "$d" ] && for f in "$d"/**/*; do
-              [ -f "$f" ] || continue
-              base=$(basename "$f")
-              if [ -n "${SEEN[$base]:-}" ]; then
-                renamed="$d/${d}-${base}"
-                mv "$f" "$renamed"
-                FILES+=("$renamed")
-                if [ "$d" = "macos" ]; then MAC_FILE="${d}-${base}"; fi
-                if [ "$d" = "windows" ]; then WIN_FILE="${d}-${base}"; fi
-              else
-                SEEN[$base]=1
-                FILES+=("$f")
-                if [ "$d" = "macos" ]; then MAC_FILE="$base"; fi
-                if [ "$d" = "windows" ]; then WIN_FILE="$base"; fi
-              fi
-            done
-          done
+          shopt -s nullglob
+          # Upload everything safely
+          gh release upload "$TAG" macos/* windows/* --clobber || true
           
-          if [ ${#FILES[@]} -eq 0 ]; then
-            echo "no build artifacts to attach"
-            exit 1
-          fi
-          
-          # Upload files to the release
-          gh release upload "$TAG" "${FILES[@]}" --clobber
+          # Extract the primary filenames for the README links
+          MAC_FILE=$(find macos -name "*.dmg" -exec basename {} \; | head -n 1)
+          WIN_FILE=$(find windows -name "*Setup.exe" -exec basename {} \; | head -n 1)
           
           # UPDATE README DYNAMICALLY
           git config user.name "github-actions[bot]"

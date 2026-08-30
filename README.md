@@ -8,8 +8,8 @@
     <img src="https://shieldcn.dev/badge/Bun-v1.4.0-black.svg?logo=bun" alt="Bun"/>
   </p>
   <p>
-    <!-- download-mac --><a href="https://github.com/aksisonline/Discord-NDI/releases/download/v0.1.0/macos-Discord-NDI.dmg"><img src="https://shieldcn.dev/badge/Download%20for-MacOS-3B2D8A.svg?logo=apple" alt="Download macOS" /></a><!-- /download-mac -->
-    <!-- download-win --><a href="https://github.com/aksisonline/Discord-NDI/releases/download/v0.1.0/windows-Discord-NDI-Setup.exe"><img src="https://shieldcn.dev/badge/Download%20for-Windows-3B2D8A.svg?logo=ri%3AFaMicrosoft" alt="Download Windows" /></a><!-- /download-win -->
+    <!-- download-mac --><a href="https://github.com/aksisonline/Discord-NDI/releases/download/v0.1.0/Discord-NDI.dmg"><img src="https://shieldcn.dev/badge/Download%20for-MacOS-3B2D8A.svg?logo=apple" alt="Download macOS" /></a><!-- /download-mac -->
+    <!-- download-win --><a href="https://github.com/aksisonline/Discord-NDI/releases/download/v0.1.0/Discord-NDI-Setup.exe"><img src="https://shieldcn.dev/badge/Download%20for-Windows-3B2D8A.svg?logo=ri%3AFaMicrosoft" alt="Download Windows" /></a><!-- /download-win -->
   </p>
 </div>
 
