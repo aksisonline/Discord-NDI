@@ -31,7 +31,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
 
       - name: Install app dependencies
@@ -61,7 +61,7 @@ jobs:
             "shell/discord-ndi-mac/build/Discord-NDI.app" \
             || test -f "shell/discord-ndi-mac/build/Discord-NDI.dmg"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: macos
           if-no-files-found: error
@@ -73,7 +73,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
 
       - name: Install app dependencies
@@ -92,7 +92,7 @@ jobs:
           HUTCH_HOME: ${{ github.workspace }}/shell/discord-ndi/.hutch
         run: bunx electrobun build --env=stable
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: windows
           if-no-files-found: warn
@@ -104,17 +104,17 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Download macOS artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: macos
           path: macos
 
       - name: Download Windows artifact (skip on failure)
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: windows
           path: windows
