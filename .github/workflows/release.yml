@@ -142,5 +142,5 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "docs: update dynamic download links for $TAG [skip ci]"
             # When run from a release, push to main
-            git push origin main || true
+            git push origin HEAD:main || true
           fi
