@@ -102,24 +102,33 @@ export class Controller {
      * threaded through the video/audio wire protocol — this is call-wide metadata,
      * not per-participant, and the CDP session can just be asked directly.
      *
-     * Selectors found by probing a live client (2026-08, app-0.0.409): each connected
-     * member (camera on or off) gets a `voiceUser__<hash>` row in the channel sidebar;
-     * its closest `containerDefault_<hash>` ancestor holds the channel's `name__<hash>`
-     * label. Prefix-matched like every other DOM hook here — the hashes drift, the
-     * prefixes have not. No rows at all reads as "not in a call"; a solo call (no one
-     * else connected) is indistinguishable from that and reports the same — known
-     * ceiling, fine for a status display.
+     * Selectors found by probing a live client (2026-08, app-0.0.409): the sidebar
+     * renders a `voiceUser__<hash>` row per connected member (camera on or off) under
+     * EVERY populated voice channel in the guild, not just the one the operator is in —
+     * so the channel to count has to be identified first, not assumed from the first
+     * row found. `titleWrapper__<hash>` is the persistent connected-call widget's title,
+     * which only ever names the operator's own channel; match that name against the
+     * sidebar's `containerDefault_<hash>` channel containers (each holding a
+     * `name__<hash>` label) to find the right one before counting its rows. Prefix-
+     * matched like every other DOM hook here — the hashes drift, the prefixes have not.
+     * No widget at all reads as "not in a call".
      */
     private async channelInfo(): Promise<{ name: string | null; members: number }> {
         if (!this.session) return { name: null, members: 0 };
         const expression = `(() => {
             try {
-                const voiceUsers = document.querySelectorAll('[class*="voiceUser__"]');
-                if (!voiceUsers.length) return { name: null, members: 0 };
-                const container = voiceUsers[0].closest('[class*="containerDefault_"]');
-                const nameEl = container?.querySelector('[class*="name__"]');
-                // +1: this list doesn't include the operator's own row.
-                return { name: nameEl?.textContent ?? null, members: voiceUsers.length + 1 };
+                const widget = document.querySelector('[class*="titleWrapper__"]');
+                const name = widget?.textContent?.trim() ?? null;
+                if (!name) return { name: null, members: 0 };
+
+                const containers = new Set(
+                    [...document.querySelectorAll('[class*="voiceUser__"]')]
+                        .map(v => v.closest('[class*="containerDefault_"]'))
+                );
+                const match = [...containers].find(
+                    c => c?.querySelector('[class*="name__"]')?.textContent?.trim() === name
+                );
+                return { name, members: match?.querySelectorAll('[class*="voiceUser__"]').length ?? 0 };
             } catch {
                 return { name: null, members: 0 };
             }
