@@ -123,8 +123,11 @@ export class Controller {
      * channel's name as though it were an active call. Fixed by identifying the
      * operator's own row instead: `[aria-label="Mute"]` is the always-rendered
      * account-panel control (regardless of connection state), whose `panels__<hash>`
-     * ancestor holds the operator's own display name in a `title_<hash>` element; match
-     * that against each `voiceUser__<hash>` row's aria-label to find their row, then its
+     * ancestor holds the operator's own display name in a `title_<hash>` element. That
+     * name can carry a custom-status suffix a voice row's aria-label doesn't (panel
+     * "AKS 已上线" vs row "AKS, Deafened", confirmed live) — check the panel name
+     * *starts with* each row's own name (stripped of its ", Muted"/", Deafened" suffix),
+     * not an exact/reverse match, to find their row. Then its
      * `containerDefault_<hash>` ancestor for the channel's `name__<hash>` label and
      * sibling row count. Prefix-matched like every other DOM hook here — the hashes
      * drift, the prefixes have not.
@@ -144,9 +147,14 @@ export class Controller {
                     ?.querySelector('[class*="title_"]')?.textContent?.trim();
                 if (!myName) return { name: null, members: 0 };
 
-                const mine = [...document.querySelectorAll('[class*="voiceUser__"]')].find(
-                    v => v.querySelector('[aria-label]')?.getAttribute('aria-label')?.startsWith(myName)
-                );
+                // The account panel's name can carry a custom-status suffix the voice
+                // row doesn't (e.g. panel "AKS 已上线" vs row "AKS, Deafened") — strip
+                // the row's own ", Muted"/", Deafened" suffix and check the panel name
+                // starts with THAT, not the other way around.
+                const mine = [...document.querySelectorAll('[class*="voiceUser__"]')].find(v => {
+                    const base = v.querySelector('[aria-label]')?.getAttribute('aria-label')?.split(',')[0]?.trim();
+                    return base && myName.startsWith(base);
+                });
                 if (!mine) return { name: null, members: 0 };
 
                 const container = mine.closest('[class*="containerDefault_"]');
