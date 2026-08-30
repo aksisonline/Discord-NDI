@@ -1,80 +1,16 @@
-name: release
+name: build-release
 
-# Triggered by `test` workflow success on main (workflow_run), or manually for a stable tag.
 on:
-  workflow_run:
-    workflows: [test]
-    types: [completed]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
-      stable:
-        description: 'Set to "true" to publish a stable (non-prerelease) release.'
-        required: false
-        type: string
-        default: "false"
+      tag:
+        description: 'Tag to build and release to'
+        required: true
 
 jobs:
-  prepare:
-    # workflow_run fires for test completions on ANY branch — without the head_branch
-    # check, every green PR test run would cut a new draft prerelease.
-    if: >-
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      tag: ${{ steps.version.outputs.tag }}
-      prerelease: ${{ steps.version.outputs.prerelease }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # Resolve next version. Prereleases target the NEXT minor off the latest stable
-      # tag (default 0.1.0 when none exists); the -rc.N counter increments per base.
-      # Stable releases are cut from that same bumped base. This keeps tags advancing
-      # instead of reusing 0.0.0 once a prerelease exists.
-      - uses: actions/github-script@v7
-        id: version
-        with:
-          script: |
-            const { execSync } = require("child_process");
-            const tags = execSync("git tag --list 'v*' --sort -v:refname")
-              .toString().split("\n").filter(Boolean);
-            const bumpMinor = (v) => {
-              const [maj, min] = v.split(".");
-              return `${maj}.${Number(min) + 1}.0`;
-            };
-            const latestStable = tags.find(t => !/-rc\./.test(t));
-            const base = latestStable
-              ? bumpMinor(latestStable.replace(/^v/, ""))
-              : "0.1.0";
-            const stable = ("${{ github.event.inputs.stable }}" || "false") === "true";
-
-            let tag, prerelease;
-            if (stable) {
-              tag = `v${base}`;
-              prerelease = "false";
-            } else {
-              const rcTags = tags.filter(t => t.startsWith(`v${base}-rc.`));
-              tag = `v${base}-rc.${rcTags.length + 1}`;
-              prerelease = "true";
-            }
-
-            console.log(`tag=${tag}`);
-            require("fs").writeFileSync(process.env.GITHUB_OUTPUT,
-              `tag=${tag}\nprerelease=${prerelease}\n`, { flag: "a" });
-
-  # Native SwiftUI shell — "for the looks", per the call to build mac natively and
-  # leave Windows on Electrobun. package.sh assembles a real .app: swift build for the
-  # shell, plus a plain `bun build` of the existing app/index.ts backend run by a
-  # bundled copy of the bun executable (not `bun build --compile`: its runtime can't
-  # resolve grandiose's own nested `require("bindings")` at all — confirmed by testing
-  # directly, not assumed).
   build-macos:
-    needs: [prepare]
     runs-on: macos-latest
     permissions:
       contents: write
@@ -84,7 +20,6 @@ jobs:
 
       - name: Install app dependencies
         working-directory: app
-        # grandiose compiles via node-gyp; macos runners have Xcode CLT for it.
         run: bun install --frozen-lockfile
 
       - name: Assemble Discord-NDI.app
@@ -100,13 +35,8 @@ jobs:
           if-no-files-found: error
           path: shell/discord-ndi-mac/build/Discord-NDI.dmg
 
-  # Entirely unverified — no Windows machine has ever run this project. Keep it
-  # non-blocking so a macOS-only draft still ships; the Windows artifact simply
-  # won't attach until the build output path is confirmed on a real runner.
   build-windows:
-    needs: [prepare]
     runs-on: windows-latest
-    continue-on-error: true
     permissions:
       contents: write
     steps:
@@ -126,22 +56,16 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          # Only the NSIS installer is a release-worthy installable; the raw
-          # launcher.exe and update-bundle metadata/tar.zst siblings aren't.
-          # May be empty until the Windows build path is confirmed; release step
-          # tolerates a missing windows artifact.
           if-no-files-found: warn
           path: shell/discord-ndi/build/stable-win-*/**/*Setup.exe
 
-  release:
-    needs: [prepare, build-macos, build-windows]
+  upload:
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
@@ -149,8 +73,6 @@ jobs:
           name: macos
           path: macos
 
-      # Windows job was continue-on-error above in spirit; we use continue-on-error here
-      # so a failed Windows build doesn't block drafting the macOS half.
       - name: Download Windows artifact (skip on failure)
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -158,19 +80,11 @@ jobs:
           name: windows
           path: windows
 
-      # --generate-notes groups commits as Added/Fixed etc. Attach the build artifacts
-      # (the .dmg/.app) by their actual file paths; gh release create ignores directory
-      # arguments, so expand recursively and keep only regular files. Windows may be
-      # absent (unverified) — skip it silently.
-      - name: Create release
+      - name: Upload to release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.prepare.outputs.tag }}
+          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
         run: |
-          ARGS=(--generate-notes)
-          if [ "${{ needs.prepare.outputs.prerelease }}" = "true" ]; then
-            ARGS+=(--prerelease)
-          fi
           shopt -s globstar nullglob
           declare -A SEEN
           FILES=()
@@ -194,26 +108,30 @@ jobs:
               fi
             done
           done
+          
           if [ ${#FILES[@]} -eq 0 ]; then
             echo "no build artifacts to attach"
             exit 1
           fi
-          gh release create "$TAG" "${ARGS[@]}" "${FILES[@]}"
+          
+          # Upload files to the release
+          gh release upload "$TAG" "${FILES[@]}" --clobber
           
           # UPDATE README DYNAMICALLY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
           if [ -n "$MAC_FILE" ]; then
-            sed -i -e "s|<!-- download-mac -->.*<!-- \/download-mac -->|<!-- download-mac --><a href=\"https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$MAC_FILE\"><img src=\"https://shieldcn.dev/badge/Download_macOS-blue.png?logo=apple\" alt=\"Download macOS\"/></a><!-- /download-mac -->|g" README.md || true
+            sed -i -e "s|<!-- download-mac -->.*<!-- /download-mac -->|<!-- download-mac --><a href=\"https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$MAC_FILE\"><img src=\"https://shieldcn.dev/badge/Download_macOS-blue.png?logo=apple\" alt=\"Download macOS\"/></a><!-- /download-mac -->|g" README.md || true
           fi
           
           if [ -n "$WIN_FILE" ]; then
-            sed -i -e "s|<!-- download-win -->.*<!-- /download-win -->|<!-- download-win --> [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-blue?style=for-the-badge&logo=windows)](https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$WIN_FILE) <!-- /download-win -->|g" README.md || true
+            sed -i -e "s|<!-- download-win -->.*<!-- /download-win -->|<!-- download-win --><a href=\"https://github.com/aksisonline/Discord-NDI/releases/download/$TAG/$WIN_FILE\"><img src=\"https://shieldcn.dev/badge/Download_Windows-blue.png?logo=windows\" alt=\"Download Windows\"/></a><!-- /download-win -->|g" README.md || true
           fi
           
           git add README.md
           if ! git diff --cached --quiet; then
             git commit -m "docs: update dynamic download links for $TAG [skip ci]"
-            git push origin HEAD:main || true
+            # When run from a release, push to main
+            git push origin main || true
           fi
