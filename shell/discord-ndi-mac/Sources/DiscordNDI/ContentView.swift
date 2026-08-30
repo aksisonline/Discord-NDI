@@ -30,7 +30,11 @@ struct ContentView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+        // fullSizeContentView (in transparentTitlebar()) extends content up under the
+        // traffic lights; clear them explicitly instead of guessing a fixed inset.
+        .padding(.top, 28)
         .frame(minWidth: 420, minHeight: 340, alignment: .topLeading)
         .containerBackground(.thickMaterial, for: .window)
         .transparentTitlebar()
