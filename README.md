@@ -84,6 +84,17 @@ open -a Discord --args --remote-debugging-port=9222
 
 ---
 
+## ⚠️ Troubleshooting macOS
+
+If macOS throws the **"Discord-NDI is damaged and can't be opened"** error when you launch the app, this is Apple's Gatekeeper blocking unsigned open-source applications downloaded from the internet.
+
+To bypass this safely, open your Terminal and remove the quarantine attribute:
+```bash
+xattr -cr /Applications/Discord-NDI.app
+```
+
+---
+
 ## 📹 What gets captured?
 
 | Feature | Official Discord | Vesktop / browser |

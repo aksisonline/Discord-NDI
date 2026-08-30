@@ -83,3 +83,4 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 
 echo "assembled: $APP"
+codesign --force --deep -s - "$APP"
