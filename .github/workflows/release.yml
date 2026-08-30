@@ -167,7 +167,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
         run: |
-          ARGS=(--draft --generate-notes)
+          ARGS=(--generate-notes)
           if [ "${{ needs.prepare.outputs.prerelease }}" = "true" ]; then
             ARGS+=(--prerelease)
           fi
