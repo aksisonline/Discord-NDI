@@ -2,61 +2,156 @@
 <meta charset="utf-8">
 <title>Discord-NDI</title>
 <style>
-  :root { color-scheme: dark; --bg:#1a1b1e; --card:#25262b; --row:#2c2e33; --fg:#e9ecef; --dim:#909296; --on:#37b24d; --off:#495057; --accent:#4dabf7; }
+  :root {
+    color-scheme: dark;
+    --bg: #08070f;
+    --bg-glow: radial-gradient(60% 40% at 50% -10%, rgba(140, 107, 255, .16), transparent 70%);
+    --panel: rgba(255, 255, 255, .045);
+    --panel-hover: rgba(255, 255, 255, .075);
+    --panel-border: rgba(255, 255, 255, .08);
+    --row: rgba(255, 255, 255, .06);
+    --fg: #f4f2fb;
+    --dim: #9a95b5;
+    --dim2: #6f6a8c;
+    --accent: #8c6bff;
+    --accent-deep: #5b38d6;
+    --on: #34d399;
+    --off: #4b4768;
+    --warn: #f4a94d;
+  }
   * { box-sizing: border-box; }
-  /* Several elements below set their own `display` (flex/etc), which otherwise ties
-     with and can lose to the UA stylesheet's [hidden] rule depending on cascade order —
-     silently leaving a "hidden" element visible. Force it here, once, for all of them. */
   [hidden] { display: none !important; }
-  body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--fg); padding:28px; }
-  h1 { font-size:17px; margin:0 0 4px; letter-spacing:.3px; }
-  .sub { color:var(--dim); font-size:13px; margin-bottom:22px; }
-  .row { display:flex; align-items:center; justify-content:space-between; gap:14px; background:var(--card); padding:14px 16px; border-radius:10px; }
-  .row .label { display:flex; align-items:center; gap:10px; font-weight:600; }
-  .switch { appearance:none; border:0; border-radius:999px; position:relative; cursor:pointer; transition:background .15s; flex-shrink:0; }
-  .switch::after { content:""; position:absolute; border-radius:50%; background:#fff; transition:transform .15s; }
-  .switch.sm { width:38px; height:22px; background:var(--off); }
-  .switch.sm::after { top:3px; left:3px; width:16px; height:16px; }
-  .switch.sm[aria-pressed="true"] { background:var(--on); }
-  .switch.sm[aria-pressed="true"]::after { transform:translateX(16px); }
+  body {
+    margin: 0; min-height: 100vh; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg) var(--bg-glow); color: var(--fg); padding: 28px 32px 40px;
+  }
 
-  .channel-bar { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13px; color:var(--dim); }
-  .channel-bar .name { color:var(--fg); font-weight:600; }
-  .channel-bar .dot { opacity:.5; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .mark {
+    width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+    background: radial-gradient(circle at 35% 30%, #b39dff, var(--accent) 55%, var(--accent-deep));
+    box-shadow: 0 0 14px rgba(140, 107, 255, .55);
+  }
+  h1 { font-size: 16px; font-weight: 650; margin: 0; letter-spacing: .2px; }
+  .sub { color: var(--dim); font-size: 12.5px; margin: 3px 0 0; }
 
-  /* Front-and-center empty state: no active call at all, not just no cameras. */
-  .no-vc { display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; margin-top:80px; color:var(--dim); }
-  .no-vc .icon { font-size:32px; margin-bottom:6px; opacity:.7; }
-  .no-vc .title { color:var(--fg); font-weight:600; font-size:15px; }
-  .no-vc .sub { font-size:13px; }
+  .pill {
+    display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600;
+    padding: 6px 12px; border-radius: 999px; background: var(--panel); border: 1px solid var(--panel-border);
+    color: var(--dim); white-space: nowrap;
+  }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--off); flex-shrink: 0; }
+  .pill.live { color: var(--fg); }
+  .pill.live .dot { background: var(--on); box-shadow: 0 0 6px var(--on); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 
-  ul { list-style:none; padding:0; margin:20px 0 0; display:flex; flex-direction:column; gap:8px; }
-  li { background:var(--card); border-radius:10px; padding:12px 14px; border:1px solid transparent; }
-  li.off { border-color:var(--off); opacity:.6; }
-  .source-top { display:flex; align-items:center; gap:10px; }
-  .source-name { flex:1; font-weight:500; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .icon-btn { appearance:none; border:0; background:var(--row); color:var(--fg); width:30px; height:30px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
-  .icon-btn:hover { background:var(--off); }
-  .source-bottom { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid var(--row); font-size:12px; }
-  .url { color:var(--accent); font-family:ui-monospace,monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .paused { color:var(--dim); }
-  .empty, .warn { color:var(--dim); font-size:13px; margin-top:18px; }
-  .warn { color:#ffa94d; }
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 22px 0 16px; }
+  .channel-bar { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--dim); }
+  .channel-bar .name { color: var(--fg); font-weight: 650; }
+  .channel-bar .dot { opacity: .4; }
+
+  .view-toggle { display: flex; gap: 2px; padding: 3px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; flex-shrink: 0; }
+  .view-toggle button {
+    appearance: none; border: 0; background: transparent; color: var(--dim); cursor: pointer;
+    width: 32px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+  }
+  .view-toggle button svg { width: 15px; height: 15px; }
+  .view-toggle button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .view-toggle button:not([aria-pressed="true"]):hover { background: var(--panel-hover); color: var(--fg); }
+
+  .no-vc, .empty-state {
+    display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+    margin-top: 72px; color: var(--dim);
+  }
+  .no-vc .icon, .empty-state .icon { font-size: 30px; margin-bottom: 6px; opacity: .8; }
+  .no-vc .title, .empty-state .title { color: var(--fg); font-weight: 650; font-size: 14.5px; }
+  .no-vc .sub, .empty-state .sub { font-size: 12.5px; }
+
+  .switch { appearance: none; border: 0; border-radius: 999px; position: relative; cursor: pointer; transition: background .15s; flex-shrink: 0; }
+  .switch::after { content: ""; position: absolute; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .switch.sm { width: 36px; height: 21px; background: var(--off); }
+  .switch.sm::after { top: 2.5px; left: 2.5px; width: 16px; height: 16px; }
+  .switch.sm[aria-pressed="true"] { background: var(--on); }
+  .switch.sm[aria-pressed="true"]::after { transform: translateX(15px); }
+
+  .icon-btn {
+    appearance: none; border: 0; background: var(--row); color: var(--fg); cursor: pointer;
+    width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 12.5px; flex-shrink: 0;
+  }
+  .icon-btn:hover { background: var(--panel-hover); }
+
+  /* --- list view --- */
+  ul.list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  ul.list li {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 12px 14px;
+  }
+  ul.list li.off { opacity: .55; }
+  .row-top { display: flex; align-items: center; gap: 10px; }
+  .source-name { flex: 1; font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--off); flex-shrink: 0; }
+  .live-dot.on { background: var(--on); box-shadow: 0 0 6px var(--on); }
+  .row-bottom {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px;
+    padding-top: 9px; border-top: 1px solid var(--panel-border); font-size: 11.5px;
+  }
+  .url { color: var(--accent); font-family: ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .paused { color: var(--dim); }
+
+  /* --- grid view --- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .card.off { opacity: .55; }
+  .preview { position: relative; aspect-ratio: 16 / 9; background: #000; }
+  .preview canvas { width: 100%; height: 100%; display: block; }
+  .preview .live-badge {
+    position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 999px; background: rgba(0, 0, 0, .55); backdrop-filter: blur(4px);
+    color: var(--dim);
+  }
+  .preview .live-badge.on { color: #fff; }
+  .preview .waiting {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--dim2); font-size: 11.5px;
+  }
+  .card-bottom { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+  .card-bottom .source-name { font-size: 12.5px; }
+
+  .warn { color: var(--warn); font-size: 12.5px; margin-top: 18px; display: flex; align-items: center; gap: 6px; }
 </style>
 
-<h1>Discord-NDI</h1>
-<div class="sub">Every participant in your call as a separate NDI source and browser URL.</div>
+<header>
+  <div class="brand">
+    <div class="mark"></div>
+    <div>
+      <h1>Discord-NDI</h1>
+      <div class="sub">Every participant as its own NDI source.</div>
+    </div>
+  </div>
+  <div class="pill" id="statePill"><span class="dot"></span><span id="state">Attaching…</span></div>
+</header>
 
-<div class="row">
-  <span class="label" id="state">Attaching…</span>
-</div>
-
-<div class="channel-bar" id="channelBar" hidden>
-  <span class="name" id="channelName"></span>
-  <span class="dot">·</span>
-  <span id="memberCount"></span>
-  <span class="dot">·</span>
-  <span id="streamCount"></span>
+<div class="toolbar">
+  <div class="channel-bar" id="channelBar" hidden>
+    <span class="name" id="channelName"></span>
+    <span class="dot">·</span>
+    <span id="memberCount"></span>
+    <span class="dot">·</span>
+    <span id="streamCount"></span>
+  </div>
+  <div class="view-toggle" role="group" aria-label="View">
+    <button id="listBtn" aria-label="List view" aria-pressed="false">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4h10M3 8h10M3 12h10"/></svg>
+    </button>
+    <button id="gridBtn" aria-label="Grid view" aria-pressed="false">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg>
+    </button>
+  </div>
 </div>
 
 <div class="no-vc" id="noVc" hidden>
@@ -65,13 +160,22 @@
   <div class="sub">Join a voice channel in Discord to start capturing.</div>
 </div>
 
-<ul id="sources"></ul>
-<div class="empty" id="empty" hidden></div>
+<div class="empty-state" id="empty" hidden>
+  <div class="icon">&#128248;</div>
+  <div class="title">Attached</div>
+  <div class="sub">Waiting for someone to turn a camera on.</div>
+</div>
+
+<ul class="list" id="listView" hidden></ul>
+<div class="grid" id="gridView" hidden></div>
+
 <div class="warn" id="warn" hidden></div>
 
 <script>
 const $ = id => document.getElementById(id);
 let lastSourcesJson = "";
+let view = localStorage.getItem("discord-ndi-view") === "grid" ? "grid" : "list";
+const previews = new Map(); // key -> { ws, canvas, off, offCtx }
 
 function rotateIcon(deg) {
   return deg === 0 ? "&#8635;" : deg + "&deg;";
@@ -80,56 +184,166 @@ function rotateIcon(deg) {
 async function post(path, body) {
   const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   if (!r.ok) return alert(await r.text());
-  refresh();
+  refresh(true);
 }
 
 function copyUrl(url) {
   navigator.clipboard.writeText(location.origin + url).catch(() => {});
 }
 
-function render(sources) {
-  // The list re-renders wholesale via innerHTML, which yanks buttons out from under an
-  // in-flight click if it runs during one — skip the rebuild when nothing that affects
-  // the DOM changed. `frames` is deliberately excluded: it changes on every poll while
-  // capturing, which would otherwise force a rebuild every single second regardless.
-  const json = JSON.stringify(sources.map(({ key, name, enabled, rotation, url }) => ({ key, name, enabled, rotation, url })));
-  if (json === lastSourcesJson) return;
-  lastSourcesJson = json;
+function setView(next) {
+  view = next;
+  localStorage.setItem("discord-ndi-view", view);
+  $("listBtn").setAttribute("aria-pressed", String(view === "list"));
+  $("gridBtn").setAttribute("aria-pressed", String(view === "grid"));
+  lastSourcesJson = ""; // force a rebuild under the new view
+  refresh(true);
+}
+$("listBtn").onclick = () => setView("list");
+$("gridBtn").onclick = () => setView("grid");
+setView(view);
 
-  $("sources").innerHTML = sources.map(src => `
+function stopPreview(key) {
+  const p = previews.get(key);
+  if (!p) return;
+  p.ws.close();
+  previews.delete(key);
+}
+
+function stopAllPreviews() {
+  for (const key of [...previews.keys()]) stopPreview(key);
+}
+
+function startPreview(key, canvas) {
+  if (previews.has(key)) return;
+  const ctx = canvas.getContext("2d");
+  const off = new OffscreenCanvas(1, 1);
+  const offCtx = off.getContext("2d");
+  const entry = { canvas, off, offCtx };
+
+  function connect() {
+    const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + `/view/${encodeURIComponent(key)}/socket`);
+    ws.binaryType = "arraybuffer";
+    entry.ws = ws;
+    ws.onmessage = ev => {
+      const view = new DataView(ev.data);
+      const width = view.getUint32(0, true);
+      const height = view.getUint32(4, true);
+      const rgba = new Uint8ClampedArray(ev.data, 8);
+      if (off.width !== width || off.height !== height) { off.width = width; off.height = height; }
+      offCtx.putImageData(new ImageData(rgba, width, height), 0, 0);
+
+      const box = canvas.parentElement;
+      const w = box.clientWidth, h = box.clientHeight;
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      ctx.drawImage(off, 0, 0, canvas.width, canvas.height);
+      canvas.dataset.hasFrame = "1";
+    };
+    ws.onclose = () => { if (previews.has(key)) setTimeout(connect, 1000); };
+  }
+  connect();
+  previews.set(key, entry);
+}
+
+function renderList(sources) {
+  $("listView").innerHTML = sources.map(src => `
     <li class="${src.enabled ? "" : "off"}">
-      <div class="source-top">
+      <div class="row-top">
+        <span class="live-dot ${src.live ? "on" : ""}"></span>
         <span class="source-name">${src.name}</span>
         <button class="icon-btn" aria-label="Rotate" data-rotate="${src.key}" data-current="${src.rotation}">${rotateIcon(src.rotation)}</button>
         <button class="switch sm" aria-pressed="${src.enabled}" aria-label="Toggle source" data-enable="${src.key}" data-current="${src.enabled}"></button>
       </div>
-      <div class="source-bottom">
+      <div class="row-bottom">
         ${src.enabled
           ? `<span class="url">${location.host}${src.url}</span><button class="icon-btn" aria-label="Copy URL" data-copy="${src.url}">&#10697;</button>`
           : `<span class="paused">off — source paused</span>`}
       </div>
     </li>
   `).join("");
+  wireControls($("listView"));
+}
 
-  $("sources").querySelectorAll("[data-rotate]").forEach(btn => btn.onclick = () => {
+function renderGrid(sources) {
+  stopAllPreviews();
+  $("gridView").innerHTML = sources.map(src => `
+    <div class="card ${src.enabled ? "" : "off"}">
+      <div class="preview">
+        ${src.enabled ? `<canvas data-preview="${src.key}"></canvas><div class="waiting" data-waiting="${src.key}">no signal yet</div>` : `<div class="waiting">off — source paused</div>`}
+        <div class="live-badge ${src.live ? "on" : ""}"><span class="live-dot ${src.live ? "on" : ""}"></span>${src.enabled ? (src.live ? "live" : "connecting") : "off"}</div>
+      </div>
+      <div class="card-bottom">
+        <span class="source-name" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${src.name}</span>
+        <button class="icon-btn" aria-label="Rotate" data-rotate="${src.key}" data-current="${src.rotation}">${rotateIcon(src.rotation)}</button>
+        <button class="switch sm" aria-pressed="${src.enabled}" aria-label="Toggle source" data-enable="${src.key}" data-current="${src.enabled}"></button>
+      </div>
+    </div>
+  `).join("");
+  wireControls($("gridView"));
+
+  for (const src of sources) {
+    if (!src.enabled) continue;
+    const canvas = $("gridView").querySelector(`canvas[data-preview="${CSS.escape(src.key)}"]`);
+    if (canvas) startPreview(src.key, canvas);
+  }
+  // Hide "no signal yet" once real frames start arriving.
+  const poll = setInterval(() => {
+    if (!document.body.contains($("gridView"))) return clearInterval(poll);
+    let anyPending = false;
+    for (const canvas of $("gridView").querySelectorAll("canvas[data-preview]")) {
+      const waiting = $("gridView").querySelector(`[data-waiting="${CSS.escape(canvas.dataset.preview)}"]`);
+      if (!waiting) continue;
+      if (canvas.dataset.hasFrame) waiting.hidden = true; else anyPending = true;
+    }
+    if (!anyPending) clearInterval(poll);
+  }, 300);
+}
+
+function wireControls(root) {
+  root.querySelectorAll("[data-rotate]").forEach(btn => btn.onclick = () => {
     const next = { 0: 90, 90: 180, 180: 270, 270: 0 }[Number(btn.dataset.current)];
     post(`/api/source/${encodeURIComponent(btn.dataset.rotate)}/rotation`, { rotation: next });
   });
-  $("sources").querySelectorAll("[data-enable]").forEach(btn => btn.onclick = () => {
+  root.querySelectorAll("[data-enable]").forEach(btn => btn.onclick = () => {
     post(`/api/source/${encodeURIComponent(btn.dataset.enable)}/enabled`, { enabled: btn.dataset.current !== "true" });
   });
-  $("sources").querySelectorAll("[data-copy]").forEach(btn => btn.onclick = () => copyUrl(btn.dataset.copy));
+  root.querySelectorAll("[data-copy]").forEach(btn => btn.onclick = () => copyUrl(btn.dataset.copy));
 }
 
-async function refresh() {
+function render(sources) {
+  // Rebuilding via innerHTML mid-click yanks buttons out from under an in-flight
+  // click, and would tear down live grid-preview sockets every second — skip the
+  // rebuild when nothing that affects the DOM actually changed. `frames`/`live` stay
+  // out of the diff key: `live` flips shortly after `enabled` anyway and forcing a
+  // full grid rebuild (new sockets) on that transition is wasted churn.
+  const json = JSON.stringify(sources.map(({ key, name, enabled, rotation, url }) => ({ key, name, enabled, rotation, url })));
+  if (json === lastSourcesJson) {
+    // Still refresh the rotation icon without a full rebuild. `live` is deliberately
+    // left stale here (updated only on the next real rebuild) — a full rebuild would
+    // tear down and reconnect every grid preview socket, and `live` flips within a
+    // second of `enabled` anyway, so it's not worth that churn.
+    for (const src of sources) {
+      document.querySelectorAll(`[data-rotate="${CSS.escape(src.key)}"]`).forEach(b => {
+        b.dataset.current = src.rotation;
+        b.innerHTML = rotateIcon(src.rotation);
+      });
+    }
+    return;
+  }
+  lastSourcesJson = json;
+  view === "grid" ? renderGrid(sources) : renderList(sources);
+}
+
+async function refresh(force) {
   const s = await (await fetch("/api/status")).json();
 
-  $("state").textContent = s.running ? "Capturing" : "Attaching…";
+  const live = s.running;
+  $("statePill").classList.toggle("live", live);
+  $("state").textContent = live ? "Capturing" : "Attaching…";
 
   // channelInfo() can only read the channel name/members while the sidebar of the
-  // guild you're actually connected to is the one on screen (see its doc comment) —
-  // that's independent of whether capture is happening, so it must not hide real,
-  // already-captured sources just because the name lookup came up empty.
+  // guild you're actually connected to is the one on screen — independent of whether
+  // capture is happening, so it must never hide real, already-captured sources.
   const hasSources = s.running && s.sources.length > 0;
   const inCall = s.running && (!!s.name || hasSources);
 
@@ -141,15 +355,14 @@ async function refresh() {
   }
 
   $("noVc").hidden = !s.running || inCall;
-
-  if (hasSources) render(s.sources);
-  $("sources").hidden = !hasSources;
-
   $("empty").hidden = !inCall || hasSources;
-  $("empty").textContent = "Attached. Waiting for someone to turn a camera on.";
+
+  if (hasSources) render(s.sources); else { stopAllPreviews(); lastSourcesJson = ""; }
+  $("listView").hidden = !hasSources || view !== "list";
+  $("gridView").hidden = !hasSources || view !== "grid";
 
   $("warn").hidden = !!s.ndi;
-  $("warn").textContent = s.ndi ? "" : "NDI unavailable: " + (s.error || "grandiose failed to load");
+  $("warn").textContent = s.ndi ? "" : "⚠︎ NDI unavailable: " + (s.error || "grandiose failed to load");
 }
 
 refresh();

@@ -87,49 +87,101 @@ function refreshNames() {
 const sourceKey = (o: Owner) => (o.screenshare ? `${o.userId}:screen` : o.userId);
 const sourceName = (o: Owner) => (o.screenshare ? `Discord – ${o.name} – Screen` : `Discord – ${o.name}`);
 
+/**
+ * Discord's internal Flux dispatcher, found by walking the webpack module cache for
+ * something dispatch()+subscribe()-shaped — there is no exported/stable reference to
+ * grab it by. Cached once found: re-walking the whole module cache on every call (once
+ * per streamer-mode toggle, and now once per Rich Presence update too) is wasted work
+ * once the real object is known.
+ */
+let cachedDispatcher: any = null;
+
+function findFluxDispatcher(): any | null {
+    if (cachedDispatcher) return cachedDispatcher;
+    try {
+        const wp = (window as any).webpackChunkdiscord_app;
+        if (!wp) return null;
+        let req: any;
+        wp.push([[Symbol()], {}, (r: any) => { req = r; }]);
+        if (!req || !req.c) return null;
+
+        for (const m of Object.values(req.c) as any[]) {
+            if (!m?.exports) continue;
+            let candidate: any = null;
+            if (typeof m.exports.dispatch === "function") candidate = m.exports;
+            else if (typeof m.exports.Z?.dispatch === "function") candidate = m.exports.Z;
+            else if (typeof m.exports.default?.dispatch === "function") candidate = m.exports.default;
+            if (candidate && typeof candidate.subscribe === "function") {
+                cachedDispatcher = candidate;
+                break;
+            }
+        }
+    } catch (e) {
+        console.error("[Discord-NDI] Failed to locate Discord's Flux dispatcher:", e);
+    }
+    return cachedDispatcher;
+}
+
+/**
+ * Runs `fn` once the dispatcher is found. Webpack chunks can still be loading right
+ * after inject (or right after a soft-navigation reload), so a miss is retried on a
+ * timer rather than treated as permanent failure — same behavior the original
+ * streamer-mode-only version of this had, just shared now.
+ */
+function withDispatcher(fn: (dispatcher: any) => void) {
+    const dispatcher = findFluxDispatcher();
+    if (dispatcher) return void fn(dispatcher);
+
+    const interval = setInterval(() => {
+        if ((window as any).__discordNdi?.stopped) {
+            clearInterval(interval);
+            return;
+        }
+        const found = findFluxDispatcher();
+        if (found) {
+            clearInterval(interval);
+            fn(found);
+        }
+    }, 1000);
+}
+
 function setStreamerMode(enabled: boolean) {
-    const trySet = () => {
+    withDispatcher(dispatcher => {
         try {
-            const wp = (window as any).webpackChunkdiscord_app;
-            if (!wp) return false;
-            let req: any;
-            wp.push([[Symbol()], {}, (r: any) => { req = r; }]);
-            if (!req || !req.c) return false;
-
-            let dispatcher: any = null;
-            for (const m of Object.values(req.c) as any[]) {
-                if (!m?.exports) continue;
-                if (typeof m.exports.dispatch === "function") dispatcher = m.exports;
-                else if (typeof m.exports.Z?.dispatch === "function") dispatcher = m.exports.Z;
-                else if (typeof m.exports.default?.dispatch === "function") dispatcher = m.exports.default;
-                if (dispatcher && typeof dispatcher.subscribe === "function") break;
-                else dispatcher = null;
-            }
-
-            if (dispatcher) {
-                dispatcher.dispatch({
-                    type: "STREAMER_MODE_UPDATE",
-                    key: "enabled",
-                    value: enabled
-                });
-                console.log(`[Discord-NDI] Streamer mode ${enabled ? "enabled" : "disabled"}`);
-                return true;
-            }
+            dispatcher.dispatch({ type: "STREAMER_MODE_UPDATE", key: "enabled", value: enabled });
+            console.log(`[Discord-NDI] Streamer mode ${enabled ? "enabled" : "disabled"}`);
         } catch (e) {
             console.error("[Discord-NDI] Failed to toggle streamer mode:", e);
         }
-        return false;
-    };
+    });
+}
 
-    if (!trySet()) {
-        const interval = setInterval(() => {
-            if ((window as any).__discordNdi?.stopped) {
-                clearInterval(interval);
-            } else if (trySet()) {
-                clearInterval(interval);
-            }
-        }, 1000);
-    }
+/**
+ * Fakes a local Rich Presence activity through the same Flux dispatch community client
+ * mods (e.g. Vencord's CustomRPC) use — it never touches Discord's real IPC/RPC socket,
+ * so no registered Discord application/bot is needed. Known ceiling: with no
+ * application_id there's no large image or buttons, just the name/details/state text,
+ * which is all this needs.
+ */
+function setRichPresence(active: boolean) {
+    withDispatcher(dispatcher => {
+        try {
+            dispatcher.dispatch({
+                type: "LOCAL_ACTIVITY_UPDATE",
+                activity: active ? {
+                    name: "Discord-NDI",
+                    type: 0,
+                    details: "Broadcasting via NDI",
+                    timestamps: { start: Date.now() },
+                    flags: 1
+                } : null,
+                socketId: "Discord-NDI"
+            });
+            console.log(`[Discord-NDI] Rich Presence ${active ? "set" : "cleared"}`);
+        } catch (e) {
+            console.error("[Discord-NDI] Failed to update Rich Presence:", e);
+        }
+    });
 }
 
 class Tap {
@@ -147,6 +199,7 @@ class Tap {
 
     start() {
         setStreamerMode(true);
+        setRichPresence(true);
         this.connect();
         const timer = setInterval(() => this.reconcile(), RECONCILE_MS);
         (this as any).timer = timer;
@@ -155,6 +208,7 @@ class Tap {
 
     stop() {
         setStreamerMode(false);
+        setRichPresence(false);
         this.stopped = true;
         clearInterval((this as any).timer);
         if (this.retry) clearTimeout(this.retry);

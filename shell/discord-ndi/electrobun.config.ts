@@ -55,4 +55,12 @@ export default {
         win: { bundleCEF: false, icon: "../../assets/icon.ico" },
         linux: { bundleCEF: false, icon: "../../assets/icon.png" },
     },
+    release: {
+        // GitHub's /latest/download/<name> URL always resolves to that asset on the
+        // most recent release, which is exactly the fixed, channel-agnostic path
+        // Electrobun's updater expects (see getUpdateInfoUrl/getTarballUrl) — no S3
+        // bucket needed. CI must upload each build's *-update.json / *-*.tar.zst /
+        // *.patch under those exact names as release assets, same as the installer.
+        baseUrl: "https://github.com/aksisonline/Discord-NDI/releases/latest/download",
+    },
 } satisfies ElectrobunConfig;

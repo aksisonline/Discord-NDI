@@ -12,6 +12,8 @@ struct ContentView: View {
                     .font(.caption)
             }
 
+            updateBanner
+
             if model.status.name != nil {
                 channelBar
             }
@@ -64,6 +66,35 @@ struct ContentView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
         .glassEffect(.regular.tint(model.status.running ? .green : .clear), in: .capsule)
+    }
+
+    @ViewBuilder
+    private var updateBanner: some View {
+        switch model.updater.state {
+        case .downloading(let version):
+            Label("Downloading Discord-NDI \(version)…", systemImage: "arrow.down.circle")
+                .foregroundStyle(.secondary)
+                .font(.caption)
+        case .readyToInstall(let version):
+            HStack(spacing: 8) {
+                Label("Discord-NDI \(version) is ready to install", systemImage: "checkmark.circle")
+                    .font(.caption)
+                Spacer()
+                Button("Restart & Update") { model.updater.installAndRelaunch() }
+                    .buttonStyle(.borderless)
+                    .font(.caption.weight(.semibold))
+            }
+        case .installing:
+            Label("Installing update…", systemImage: "arrow.triangle.2.circlepath")
+                .foregroundStyle(.secondary)
+                .font(.caption)
+        case .failed(let message):
+            Label("Update check failed: \(message)", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+                .font(.caption)
+        case .idle, .checking, .upToDate:
+            EmptyView()
+        }
     }
 
     private var channelBar: some View {

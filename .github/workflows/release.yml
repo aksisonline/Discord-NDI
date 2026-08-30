@@ -96,7 +96,14 @@ jobs:
         with:
           name: windows
           if-no-files-found: warn
-          path: shell/discord-ndi/build/stable-win-*/**/*Setup.exe
+          # artifacts/ is Electrobun's self-updater output (see electrobun.config.ts's
+          # release.baseUrl): a manifest + tarball (+ patch once a previous release
+          # exists) named exactly what Updater.checkForUpdate() requests from GitHub's
+          # /releases/latest/download/<name> URLs. Must ship as release assets under
+          # those exact flat names, same as the installer.
+          path: |
+            shell/discord-ndi/build/stable-win-*/**/*Setup.exe
+            shell/discord-ndi/artifacts/*
 
   upload:
     needs: [build-macos, build-windows]
@@ -140,6 +147,11 @@ jobs:
 
           UPLOAD_PATHS=("$MAC_PATH")
           [ -n "$WIN_PATH" ] && UPLOAD_PATHS+=("$WIN_PATH")
+          # The self-updater manifest/tarball/patch, uploaded under their own exact
+          # names (stable-win-x64-update.json etc.) — Updater.checkForUpdate() fetches
+          # these straight from /releases/latest/download/<name>.
+          while IFS= read -r -d '' f; do UPLOAD_PATHS+=("$f"); done \
+            < <(find windows/artifacts -type f -print0 2>/dev/null)
           gh release upload "$TAG" "${UPLOAD_PATHS[@]}" --clobber
 
           # Extract the primary filenames for the README links

@@ -7,6 +7,7 @@ final class AppModel {
     private let backend = BackendProcess()
     private let client: BackendClient
     private var pollTask: Task<Void, Never>?
+    let updater = Updater()
 
     var status = Status(running: false, port: 0, debugPort: 0, name: nil, members: 0, ndi: true, error: nil, sources: [])
     let uiPort: Int
@@ -18,6 +19,7 @@ final class AppModel {
 
     func start() {
         backend.start()
+        updater.start()
         pollTask = Task {
             while !Task.isCancelled {
                 if let latest = try? await client.status() {

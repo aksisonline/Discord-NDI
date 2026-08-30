@@ -5,7 +5,7 @@ import { createServer } from "net";
  * only a control surface.
  */
 
-import { BrowserWindow } from "electrobun/main";
+import { BrowserWindow, Updater } from "electrobun/main";
 
 import { findDiscord } from "../../../../app/cdp";
 import { relaunchWithDebugging } from "../../../../app/discord";
@@ -57,3 +57,28 @@ if (!await findDiscord(DEBUG_PORT).catch(() => null)) {
 await controller.start().catch(e => console.error("failed to start capture:", e));
 
 process.on("exit", () => void controller.stop());
+
+/**
+ * Downloads eagerly but never installs itself: applyUpdate() swaps the running
+ * install and relaunches, which would silently kill every NDI output and browser-view
+ * socket mid-broadcast. Only auto-applies once nothing is actually being captured.
+ */
+async function checkForUpdate() {
+    try {
+        const info = await Updater.checkForUpdate();
+        if (!info.updateAvailable) return;
+        await Updater.downloadUpdate();
+        if (controller.running && (await controller.status()).sources.length > 0) {
+            console.log(`update ${info.version} downloaded; deferring install while capturing`);
+            return;
+        }
+        console.log(`installing update ${info.version}`);
+        await Updater.applyUpdate();
+    } catch (e) {
+        console.error("update check failed:", e);
+    }
+}
+
+Updater.onStatusChange(entry => console.log(`[updater] ${entry.status}: ${entry.message}`));
+void checkForUpdate();
+setInterval(() => void checkForUpdate(), 6 * 60 * 60 * 1000);
