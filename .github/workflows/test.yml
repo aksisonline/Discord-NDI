@@ -32,6 +32,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
 
+      # tsc resolves app/ndi.ts's bare `grandiose` import relative to app/, not
+      # shell/discord-ndi/ — needs app's own node_modules present too.
+      - name: Install app dependencies
+        working-directory: app
+        run: bun install --frozen-lockfile
+
       - name: Install shell dependencies
         working-directory: shell/discord-ndi
         run: bun install --frozen-lockfile

@@ -11,10 +11,6 @@
   .row .label { display:flex; align-items:center; gap:10px; font-weight:600; }
   .switch { appearance:none; border:0; border-radius:999px; position:relative; cursor:pointer; transition:background .15s; flex-shrink:0; }
   .switch::after { content:""; position:absolute; border-radius:50%; background:#fff; transition:transform .15s; }
-  .switch.lg { width:58px; height:32px; background:var(--off); }
-  .switch.lg::after { top:4px; left:4px; width:24px; height:24px; }
-  .switch.lg[aria-pressed="true"] { background:var(--on); }
-  .switch.lg[aria-pressed="true"]::after { transform:translateX(26px); }
   .switch.sm { width:38px; height:22px; background:var(--off); }
   .switch.sm::after { top:3px; left:3px; width:16px; height:16px; }
   .switch.sm[aria-pressed="true"] { background:var(--on); }
@@ -37,8 +33,7 @@
 <div class="sub">Every participant in your call as a separate NDI source and browser URL.</div>
 
 <div class="row">
-  <span class="label" id="state">Off</span>
-  <button class="switch lg" id="toggle" aria-pressed="false" aria-label="Toggle capture"></button>
+  <span class="label" id="state">Attaching…</span>
 </div>
 
 <ul id="sources"></ul>
@@ -47,7 +42,6 @@
 
 <script>
 const $ = id => document.getElementById(id);
-let busy = false;
 let lastSourcesJson = "";
 
 function rotateIcon(deg) {
@@ -101,8 +95,7 @@ function render(sources) {
 async function refresh() {
   const s = await (await fetch("/api/status")).json();
 
-  $("toggle").setAttribute("aria-pressed", String(s.running));
-  $("state").textContent = busy ? "Working…" : s.running ? "Capturing" : "Off";
+  $("state").textContent = s.running ? "Capturing" : "Attaching…";
 
   render(s.sources);
 
@@ -114,19 +107,6 @@ async function refresh() {
   $("warn").hidden = !!s.ndi;
   $("warn").textContent = s.ndi ? "" : "NDI unavailable: " + (s.error || "grandiose failed to load");
 }
-
-$("toggle").onclick = async () => {
-  if (busy) return;
-  busy = true;
-  await refresh();
-  try {
-    const r = await fetch("/api/" + ($("toggle").getAttribute("aria-pressed") === "true" ? "stop" : "start"), { method: "POST" });
-    if (!r.ok) alert(await r.text());
-  } finally {
-    busy = false;
-    refresh();
-  }
-};
 
 refresh();
 setInterval(refresh, 1000);

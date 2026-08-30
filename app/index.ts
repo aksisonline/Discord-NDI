@@ -145,7 +145,8 @@ connect();
 interface ViewerSocketData { viewerKey: string; }
 
 /**
- * Local control panel: on/off + per-source rows, and the /view/:key browser outputs.
+ * Local control panel: per-source rows, and the /view/:key browser outputs. Capture
+ * starts automatically with the process — there is no manual master on/off.
  * `page` lets the packaged shell point at its copied view path instead of the default;
  * in the bundle the default `./ui.html` would resolve relative to the bundled main script.
  */
@@ -180,16 +181,6 @@ export function ui(controller: Controller, port: number, page?: string) {
             const { pathname } = new URL(req.url);
 
             if (pathname === "/api/status") return Response.json(controller.status());
-
-            if (pathname === "/api/start" || pathname === "/api/stop") {
-                try {
-                    pathname.endsWith("start") ? await controller.start() : await controller.stop();
-                    return Response.json(controller.status());
-                } catch (e) {
-                    // Surfaced in the UI; the usual cause is Discord running without the flag.
-                    return new Response((e as Error).message, { status: 500 });
-                }
-            }
 
             const enabledMatch = pathname.match(/^\/api\/source\/([^/]+)\/enabled$/);
             if (enabledMatch && req.method === "POST") {

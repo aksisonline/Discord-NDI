@@ -23,8 +23,8 @@ injected payload.ts         │                       │  ndi.ts + grandiose
 bun install --cwd app && bun run app/index.ts
 ```
 
-Opens a control panel at <http://127.0.0.1:9333> with an on/off switch and a live list of
-what is publishing. Discord must be running with remote debugging enabled; if it isn't,
+Opens a control panel at <http://127.0.0.1:9333> with a live list of what is publishing.
+Capture starts automatically with the process; per-source rows can each be paused. Discord must be running with remote debugging enabled; if it isn't,
 the app relaunches it for you:
 
 ```bash
@@ -70,7 +70,7 @@ All three are Discord internals with no stability guarantee.
 
 | Path | What |
 | --- | --- |
-| `app/index.ts` | Controller: attach, inject, on/off, control panel |
+| `app/index.ts` | Controller: attach, inject, control panel |
 | `app/cdp.ts` | Minimal Chrome DevTools Protocol client |
 | `app/payload.ts` | Injected renderer tap (self-contained, no imports) |
 | `app/ndi.ts` | Frame ingest + grandiose senders |
