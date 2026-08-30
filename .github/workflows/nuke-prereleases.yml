@@ -12,11 +12,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Delete prereleases
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          for tag in \$(gh release list | awk '{print $1}'); do
-            if [[ "\$tag" != "v0.1.0" ]]; then
-              echo "Deleting \$tag"
-              gh release delete "\$tag" -y || true
+          for tag in $(gh release list | awk '{print $1}'); do
+            if [[ "$tag" != "v0.1.0" ]]; then
+              echo "Deleting $tag"
+              gh release delete "$tag" -y || true
             fi
           done
