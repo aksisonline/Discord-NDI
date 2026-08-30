@@ -1,22 +1,32 @@
 import AppKit
 import SwiftUI
 
-/// SwiftUI has no direct modifier for the titlebar itself, only the content area
-/// (containerBackground). Reaching the NSWindow is the only way to make the
-/// titlebar/toolbar region blend into the same glass background instead of
-/// showing as a flat gray bar above it — the Music.app/System Settings look.
+/// SwiftUI's containerBackground(for: .window) only paints the content-layer area it
+/// manages — it doesn't reach the titlebar region even after fullSizeContentView opens
+/// that space up, so the titlebar kept rendering as a flat solid strip above it. Reaching
+/// the NSWindow to install a real NSVisualEffectView behind *everything* is the actual
+/// mechanism Music.app/System Settings use: one continuous material from the traffic
+/// lights down, not two layers that only sometimes line up.
 private struct WindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async {
-            guard let window = view.window else { return }
-            // titlebarAppearsTransparent alone only makes the titlebar's own chrome
-            // transparent — there is nothing behind it to show through until the
-            // content view is told to extend up into that region too.
+            guard let window = view.window, let contentView = window.contentView else { return }
+
             window.styleMask.insert(.fullSizeContentView)
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.toolbarStyle = .unified
+            window.isOpaque = false
+            window.backgroundColor = .clear
+
+            guard contentView.subviews.first(where: { $0 is NSVisualEffectView }) == nil else { return }
+            let effect = NSVisualEffectView(frame: contentView.bounds)
+            effect.autoresizingMask = [.width, .height]
+            effect.material = .underWindowBackground
+            effect.blendingMode = .behindWindow
+            effect.state = .active
+            contentView.addSubview(effect, positioned: .below, relativeTo: nil)
         }
         return view
     }

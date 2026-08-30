@@ -36,7 +36,6 @@ struct ContentView: View {
         // traffic lights; clear them explicitly instead of guessing a fixed inset.
         .padding(.top, 28)
         .frame(minWidth: 420, minHeight: 340, alignment: .topLeading)
-        .containerBackground(.thickMaterial, for: .window)
         .transparentTitlebar()
     }
 
