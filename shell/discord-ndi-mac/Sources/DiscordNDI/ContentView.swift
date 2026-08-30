@@ -33,6 +33,7 @@ struct ContentView: View {
         .padding(20)
         .frame(minWidth: 420, minHeight: 340, alignment: .topLeading)
         .containerBackground(.thickMaterial, for: .window)
+        .transparentTitlebar()
     }
 
     private var header: some View {
